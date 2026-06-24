@@ -26,33 +26,47 @@
 
     <footer class="transport-bar">
       <div class="transport-group transport-center">
-        <div class="meter-control" id="meter-control">
-          <button type="button" id="btn-meter" class="btn-meter" aria-haspopup="listbox" aria-expanded="false" aria-label="박자 선택">
-            <span id="meter-label" class="meter-label">Meter 4/4</span>
-          </button>
-          <div id="meter-popover" class="meter-popover hidden" role="listbox" aria-label="박자">
-            <button type="button" class="meter-option" data-value="2/4" role="option">2/4</button>
-            <button type="button" class="meter-option" data-value="3/4" role="option">3/4</button>
-            <button type="button" class="meter-option is-default" data-value="4/4" role="option">(4/4)</button>
-            <button type="button" class="meter-option" data-value="6/8" role="option">6/8</button>
+        <div class="transport-zone transport-zone-settings">
+          <div class="transport-settings">
+            <div class="meter-control" id="meter-control">
+              <button type="button" id="btn-meter" class="btn-meter" aria-haspopup="listbox" aria-expanded="false" aria-label="박자 선택">
+                <span id="meter-label" class="meter-label">Meter 4/4</span>
+              </button>
+              <div id="meter-popover" class="meter-popover hidden" role="listbox" aria-label="박자">
+                <button type="button" class="meter-option" data-value="2/4" role="option">2/4</button>
+                <button type="button" class="meter-option" data-value="3/4" role="option">3/4</button>
+                <button type="button" class="meter-option is-default" data-value="4/4" role="option">(4/4)</button>
+                <button type="button" class="meter-option" data-value="6/8" role="option">6/8</button>
+              </div>
+            </div>
+            <div id="tempo-slider-control" class="tempo-slider-control" aria-label="템포">
+              <div class="tempo-display" aria-live="polite">
+                <span class="tempo-name">모데라토</span>
+                <span class="tempo-bpm">120</span>
+              </div>
+              <input
+                type="range"
+                id="tempo-slider"
+                class="tempo-slider"
+                min="0"
+                max="4"
+                step="1"
+                value="2"
+                aria-label="템포"
+                aria-valuetext="모데라토 120"
+              >
+            </div>
           </div>
         </div>
-        <button type="button" id="btn-play" class="btn-play" title="재생" aria-label="재생">
-          <span class="play-icon" aria-hidden="true">▶</span>
-        </button>
-        <button type="button" id="btn-loop" class="btn-loop" title="반복 연주" aria-label="반복 연주" aria-pressed="false">↻</button>
-        <div id="tempo-radio-group" class="tempo-radio-group" role="radiogroup" aria-label="템포">
-          <input type="radio" name="tempo" id="tempo-60" value="60" class="tempo-radio-input">
-          <label for="tempo-60" class="tempo-radio-label">아다지오60</label>
-          <input type="radio" name="tempo" id="tempo-90" value="90" class="tempo-radio-input">
-          <label for="tempo-90" class="tempo-radio-label">안단테90</label>
-          <input type="radio" name="tempo" id="tempo-120" value="120" class="tempo-radio-input" checked>
-          <label for="tempo-120" class="tempo-radio-label">모데라토120</label>
-          <input type="radio" name="tempo" id="tempo-140" value="140" class="tempo-radio-input">
-          <label for="tempo-140" class="tempo-radio-label">알레그로140</label>
-          <input type="radio" name="tempo" id="tempo-160" value="160" class="tempo-radio-input">
-          <label for="tempo-160" class="tempo-radio-label">프레스토160</label>
+        <div class="transport-zone transport-zone-playback">
+          <div class="transport-playback">
+            <button type="button" id="btn-play" class="btn-play" title="재생" aria-label="재생">
+              <span class="play-icon" aria-hidden="true">▶</span>
+            </button>
+            <button type="button" id="btn-loop" class="btn-loop" title="반복 연주" aria-label="반복 연주" aria-pressed="false">↻</button>
+          </div>
         </div>
+        <div class="transport-zone transport-zone-instruments" aria-hidden="true"></div>
       </div>
     </footer>
   </div>

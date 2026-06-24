@@ -165,6 +165,7 @@
       tracks: [
         createTrack('piano', timeSignature),
         createTrack('bassDrum', timeSignature),
+        createTrack('snareDrum', timeSignature),
       ],
     };
   }
@@ -430,9 +431,26 @@
     return isPercussion ? createPercussionCell(dur(1, 1)) : createLaneCell(dur(1, 1), false);
   }
 
+  function ensureDefaultPercussionTracks(song) {
+    const timeSignature = song.timeSignature || { num: 4, den: 4 };
+    const maxMeasures = Math.max(...song.tracks.map((t) => t.measures.length), 1);
+    const requiredPercussion = ['bassDrum', 'snareDrum'];
+
+    requiredPercussion.forEach((instrumentId) => {
+      const exists = song.tracks.some((t) => t.instrument === instrumentId);
+      if (exists) return;
+
+      const track = createTrack(instrumentId, timeSignature);
+      while (track.measures.length < maxMeasures) {
+        addMeasure(track, timeSignature);
+      }
+      song.tracks.push(track);
+    });
+  }
+
   function normalizeV3Song(data) {
     const timeSignature = data.timeSignature || { num: 4, den: 4 };
-    return {
+    const song = {
       version: SONG_VERSION,
       tempo: normalizeTempo(data.tempo ?? DEFAULT_TEMPO),
       timeSignature,
@@ -450,6 +468,8 @@
         }),
       })),
     };
+    ensureDefaultPercussionTracks(song);
+    return song;
   }
 
   function serializeSong(song) {

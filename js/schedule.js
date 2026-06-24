@@ -78,6 +78,7 @@
               events.push({
                 time,
                 type: 'percussion',
+                instrument: track.instrument,
                 pitch: 'C2',
                 duration: 0.1,
                 measureIndex: m,
@@ -86,6 +87,7 @@
               cells.push({
                 time,
                 endTime: time + duration,
+                trackId: track.id,
                 measureIndex: m,
                 cellIndex,
                 isDrum: true,

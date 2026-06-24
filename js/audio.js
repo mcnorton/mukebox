@@ -5,6 +5,7 @@
 (function () {
   let pianoSynth = null;
   let drumSynth = null;
+  let snareSynth = null;
   let reverb = null;
   let isPlaying = false;
   let progress = 0;
@@ -24,11 +25,12 @@
   }
 
   async function warmUpSynths() {
-    if (!pianoSynth || !drumSynth) return;
+    if (!pianoSynth || !drumSynth || !snareSynth) return;
 
     const now = Tone.now();
     pianoSynth.triggerAttackRelease('C4', 0.001, now);
     drumSynth.triggerAttackRelease('C2', 0.001, now + 0.01);
+    snareSynth.triggerAttackRelease(0.001, now + 0.02);
     await Tone.context.resume();
     await new Promise((resolve) => setTimeout(resolve, 80));
   }
@@ -67,6 +69,15 @@
           envelope: { attack: 0.001, decay: 0.4, sustain: 0, release: 0.2 },
         }).toDestination();
         drumSynth.volume.value = -3;
+      }
+
+      if (!snareSynth) {
+        snareSynth = new Tone.NoiseSynth({
+          noise: { type: 'white' },
+          envelope: { attack: 0.001, decay: 0.12, sustain: 0, release: 0.05 },
+        });
+        snareSynth.connect(reverb);
+        snareSynth.volume.value = -6;
       }
 
       await warmUpSynths();
@@ -163,6 +174,8 @@
       const id = Tone.Transport.schedule((t) => {
         if (ev.type === 'melodic') {
           pianoSynth.triggerAttackRelease(ev.pitch, ev.duration, t);
+        } else if (ev.instrument === 'snareDrum') {
+          snareSynth.triggerAttackRelease(ev.duration, t);
         } else {
           drumSynth.triggerAttackRelease(ev.pitch, ev.duration, t);
         }
@@ -206,6 +219,7 @@
       .filter((c) => transportSeconds >= c.time && transportSeconds < c.endTime)
       .map((c) => ({
         pitch: c.pitch,
+        trackId: c.trackId,
         measureIndex: c.measureIndex,
         cellIndex: c.cellIndex,
         isDrum: c.isDrum,

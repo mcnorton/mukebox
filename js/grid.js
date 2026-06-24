@@ -56,7 +56,8 @@
     const whiteCount = PITCHES.filter((p) => !isBlackKey(p)).length;
     const blackCount = PITCHES.length - whiteCount;
     const blackWeight = coarse ? 28 / 38 : 16 / 22;
-    const drumRowUnits = 2;
+    const percCount = song?.tracks.filter((t) => t.type === 'percussion').length || 2;
+    const drumRowUnits = 2 * percCount;
     const totalUnits = whiteCount + blackCount * blackWeight + drumRowUnits;
     const rowArea = Math.max(0, availableH - RULER_HEIGHT);
     const unitH = totalUnits > 0 ? rowArea / totalUnits : (coarse ? 38 : 22);
@@ -183,6 +184,7 @@
       const drumArea = document.createElement('div');
       drumArea.className = 'drum-area';
       drumArea.dataset.trackId = track.id;
+      drumArea.style.setProperty('--drum-color', inst.color);
       drumArea.appendChild(renderDrumLaneRow(track, inst));
       timeline.appendChild(drumArea);
     });
@@ -241,6 +243,7 @@
     const key = document.createElement('div');
     key.className = 'piano-key drum-key-panel';
     key.style.height = `${totalDrumHeight()}px`;
+    key.style.setProperty('--drum-color', inst.color);
     key.title = inst.name;
 
     const label = document.createElement('span');
@@ -607,9 +610,9 @@
       el.classList.remove('playing');
     });
 
-    active.forEach(({ pitch, measureIndex, cellIndex, isDrum }) => {
+    active.forEach(({ pitch, trackId, measureIndex, cellIndex, isDrum }) => {
       if (isDrum) {
-        const area = document.querySelector('.drum-area');
+        const area = document.querySelector(`[data-track-id="${trackId}"]`);
         const row = area?.querySelector('.drum-lane-row');
         const seg = row?.querySelector(`.lane-measure-seg[data-measure-index="${measureIndex}"]`);
         const cellEl = seg?.querySelector(`.lane-cell[data-cell-index="${cellIndex}"]`);

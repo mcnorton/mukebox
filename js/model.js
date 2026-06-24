@@ -70,6 +70,15 @@ const INSTRUMENTS = {
     pitches: ['hit'],
     pitchLabels: { hit: '♪' },
   },
+  snareDrum: {
+    id: 'snareDrum',
+    name: '작은북',
+    type: 'percussion',
+    section: 'percussion',
+    color: '#26a69a',
+    pitches: ['hit'],
+    pitchLabels: { hit: '♪' },
+  },
 };
 
 if (typeof window !== 'undefined') {

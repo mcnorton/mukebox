@@ -3,7 +3,7 @@
  */
 
 (function () {
-  const { Grid, Audio, Storage, setTimeSignature, timeSignatureKey, normalizeTempo } = window.WMF;
+  const { Grid, Audio, Storage, setTimeSignature, timeSignatureKey, normalizeTempo, TEMPO_PRESETS } = window.WMF;
 
   let song = Storage.loadInitialSong();
   song.tempo = normalizeTempo(song.tempo);
@@ -12,7 +12,10 @@
   const btnMeter = document.getElementById('btn-meter');
   const meterPopover = document.getElementById('meter-popover');
   const meterLabel = document.getElementById('meter-label');
-  const tempoRadioGroup = document.getElementById('tempo-radio-group');
+  const tempoSliderControl = document.getElementById('tempo-slider-control');
+  const tempoSlider = document.getElementById('tempo-slider');
+  const tempoNameEl = tempoSliderControl?.querySelector('.tempo-name');
+  const tempoBpmEl = tempoSliderControl?.querySelector('.tempo-bpm');
   const btnPlay = document.getElementById('btn-play');
   const playIcon = btnPlay?.querySelector('.play-icon');
   const btnLoop = document.getElementById('btn-loop');
@@ -29,15 +32,36 @@
     });
   }
 
-  function syncTempoRadios() {
-    const bpm = String(normalizeTempo(song.tempo));
-    const radio = document.querySelector(`input[name="tempo"][value="${bpm}"]`);
-    if (radio) radio.checked = true;
+  function getTempoPresetIndex(bpm) {
+    const normalized = normalizeTempo(bpm);
+    const idx = TEMPO_PRESETS.findIndex((preset) => preset.bpm === normalized);
+    return idx >= 0 ? idx : TEMPO_PRESETS.findIndex((preset) => preset.bpm === 120);
+  }
+
+  function updateTempoDisplay(preset, sliderIndex) {
+    if (!preset) return;
+    if (tempoNameEl) tempoNameEl.textContent = preset.label;
+    if (tempoBpmEl) tempoBpmEl.textContent = String(preset.bpm);
+    if (tempoSlider) {
+      tempoSlider.setAttribute('aria-valuetext', `${preset.label} ${preset.bpm}`);
+      const idx = sliderIndex ?? Number(tempoSlider.value);
+      const max = Number(tempoSlider.max) || TEMPO_PRESETS.length - 1;
+      const fill = max > 0 ? (idx / max) * 100 : 0;
+      tempoSlider.style.setProperty('--tempo-slider-fill', `${fill}%`);
+    }
+  }
+
+  function syncTempoSlider() {
+    if (!tempoSlider) return;
+    const idx = getTempoPresetIndex(song.tempo);
+    tempoSlider.value = String(idx);
+    updateTempoDisplay(TEMPO_PRESETS[idx], idx);
   }
 
   function setTransportLocked(locked) {
     if (meterControl) meterControl.classList.toggle('transport-locked', locked);
-    if (tempoRadioGroup) tempoRadioGroup.classList.toggle('transport-locked', locked);
+    if (tempoSliderControl) tempoSliderControl.classList.toggle('transport-locked', locked);
+    if (tempoSlider) tempoSlider.disabled = locked;
     if (btnMeter) {
       btnMeter.disabled = locked;
       btnMeter.setAttribute('aria-expanded', locked ? 'false' : btnMeter.getAttribute('aria-expanded'));
@@ -55,16 +79,26 @@
     btnPlay.setAttribute('aria-label', playing ? '정지' : '재생');
   }
 
+  function positionMeterPopover() {
+    if (!meterPopover || !btnMeter) return;
+    const rect = btnMeter.getBoundingClientRect();
+    meterPopover.style.left = `${rect.left + rect.width / 2}px`;
+    meterPopover.style.top = `${rect.top - 10}px`;
+  }
+
   function closeMeterPopover() {
     if (!meterPopover || !btnMeter) return;
     meterPopover.classList.add('hidden');
     btnMeter.setAttribute('aria-expanded', 'false');
+    meterControl?.classList.remove('is-open');
   }
 
   function openMeterPopover() {
     if (!meterPopover || !btnMeter || Audio.getIsPlaying()) return;
+    positionMeterPopover();
     meterPopover.classList.remove('hidden');
     btnMeter.setAttribute('aria-expanded', 'true');
+    meterControl?.classList.add('is-open');
   }
 
   function toggleMeterPopover() {
@@ -81,7 +115,7 @@
     song.tempo = normalizeTempo(song.tempo);
     Storage.saveToLocalStorage(song);
     syncMeterLabel();
-    syncTempoRadios();
+    syncTempoSlider();
   }
 
   function showToast(message) {
@@ -99,7 +133,7 @@
   Grid.initGrid(song, onSongChange);
 
   syncMeterLabel();
-  syncTempoRadios();
+  syncTempoSlider();
   updatePlayButton();
 
   let audioPreloaded = false;
@@ -122,7 +156,8 @@
   });
 
   document.querySelectorAll('.meter-option').forEach((opt) => {
-    opt.addEventListener('click', () => {
+    opt.addEventListener('click', (e) => {
+      e.stopPropagation();
       if (Audio.getIsPlaying()) return;
 
       const [num, den] = opt.dataset.value.split('/').map(Number);
@@ -136,19 +171,38 @@
     });
   });
 
-  document.addEventListener('pointerdown', (e) => {
+  document.addEventListener('click', (e) => {
     if (!meterPopover || meterPopover.classList.contains('hidden')) return;
     if (e.target.closest('#meter-control')) return;
     closeMeterPopover();
   });
 
-  tempoRadioGroup?.addEventListener('change', (e) => {
+  window.addEventListener('resize', () => {
+    if (meterPopover && !meterPopover.classList.contains('hidden')) {
+      positionMeterPopover();
+    }
+  });
+
+  tempoSlider?.addEventListener('input', (e) => {
     if (Audio.getIsPlaying()) return;
-    if (e.target.name !== 'tempo') return;
+
+    const idx = Number(e.target.value);
+    const preset = TEMPO_PRESETS[idx];
+    if (!preset) return;
+
+    updateTempoDisplay(preset, idx);
+  });
+
+  tempoSlider?.addEventListener('change', (e) => {
+    if (Audio.getIsPlaying()) return;
+
+    const idx = Number(e.target.value);
+    const preset = TEMPO_PRESETS[idx];
+    if (!preset) return;
 
     song = Grid.getSong();
-    song.tempo = normalizeTempo(Number(e.target.value));
-    syncTempoRadios();
+    song.tempo = preset.bpm;
+    syncTempoSlider();
     onSongChange(song);
   });
 

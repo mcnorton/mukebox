@@ -21,6 +21,8 @@
   --radius-round: 50%;
   --play-size: 64px;
   --transport-control-size: calc(var(--play-size) * 0.75);
+  --transport-chip-width: 6.5rem;
+  --tempo-control-width: 7.8rem;
 }
 
 *,
@@ -380,7 +382,11 @@ body {
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
-  background: linear-gradient(to right, #fff8f0, #ffecd9);
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--drum-color) 8%, white),
+    color-mix(in srgb, var(--drum-color) 18%, white)
+  );
   border-left: 3px solid var(--drum-color);
   color: var(--drum-color);
   writing-mode: vertical-rl;
@@ -399,12 +405,12 @@ body {
 }
 
 .drum-area .lane-cell:hover {
-  background: rgba(255, 152, 0, 0.1);
+  background: color-mix(in srgb, var(--drum-color, var(--note-color, #ff9800)) 12%, transparent);
 }
 
 .drum-area .lane-cell.selected-merge {
-  background: rgba(255, 152, 0, 0.2);
-  outline-color: var(--drum-color);
+  background: color-mix(in srgb, var(--drum-color, var(--note-color, #ff9800)) 22%, transparent);
+  outline-color: var(--drum-color, var(--note-color, #ff9800));
 }
 
 .drum-area .lane-cell.active.playing {
@@ -423,7 +429,7 @@ body {
     filter: brightness(2);
     box-shadow:
       0 0 14px 4px rgba(255, 255, 255, 0.95),
-      0 0 24px 8px color-mix(in srgb, var(--drum-color) 70%, white),
+      0 0 24px 8px color-mix(in srgb, var(--drum-color, var(--note-color, #ff9800)) 70%, white),
       inset 0 0 8px rgba(255, 255, 255, 0.5);
     transform: scale(1.04);
   }
@@ -431,7 +437,7 @@ body {
     filter: brightness(1.5);
     box-shadow:
       0 0 10px 3px rgba(255, 255, 255, 0.7),
-      0 0 18px 6px color-mix(in srgb, var(--drum-color) 50%, white),
+      0 0 18px 6px color-mix(in srgb, var(--drum-color, var(--note-color, #ff9800)) 50%, white),
       inset 0 0 4px rgba(255, 255, 255, 0.3);
     transform: scale(1.02);
   }
@@ -539,9 +545,41 @@ body {
 }
 
 .transport-center {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.transport-zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: var(--play-size);
+}
+
+.transport-settings,
+.transport-playback {
+  display: flex;
+  align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  flex-wrap: wrap;
+}
+
+.transport-zone-instruments {
+  min-height: var(--play-size);
+}
+
+.meter-control,
+.btn-play,
+.btn-loop,
+.tempo-slider-control {
+  flex-shrink: 0;
 }
 
 /* Meter popover */
@@ -550,16 +588,25 @@ body {
   flex-shrink: 0;
 }
 
+.meter-control.is-open {
+  z-index: 100;
+}
+
 .btn-meter {
+  width: var(--transport-chip-width);
+  min-width: var(--transport-chip-width);
+  max-width: var(--transport-chip-width);
   height: var(--transport-control-size);
-  min-width: 6.5rem;
-  padding: 0 0.75rem;
+  padding: 0 0.5rem;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--bg);
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-meter:hover {
@@ -574,20 +621,20 @@ body {
 }
 
 .meter-popover {
-  position: absolute;
-  bottom: calc(100% + 10px);
-  left: 50%;
-  transform: translateX(-50%);
+  position: fixed;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -100%);
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  min-width: 5.5rem;
+  min-width: 4rem;
   padding: 0.5rem;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-  z-index: 50;
+  z-index: 200;
 }
 
 .meter-popover::after {
@@ -627,56 +674,100 @@ body {
   color: var(--melody-color);
 }
 
-/* Tempo radio pills */
-.tempo-radio-group {
+/* Tempo — 슬라이더 + 현재 템포 표시 */
+.tempo-slider-control {
   display: flex;
-  align-items: center;
-  gap: 0.2rem;
-  height: var(--transport-control-size);
-  flex-wrap: wrap;
-  max-width: 100%;
-}
-
-.tempo-radio-input {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-  pointer-events: none;
-}
-
-.tempo-radio-label {
-  display: inline-flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100%;
-  padding: 0 0.35rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
-  font-size: 0.62rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  cursor: pointer;
-  white-space: nowrap;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
+  gap: 0.2rem;
+  min-width: var(--tempo-control-width);
+  height: var(--transport-control-size);
+}
+
+.tempo-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.15;
+  text-align: center;
   user-select: none;
 }
 
-.tempo-radio-input:checked + .tempo-radio-label {
-  background: var(--melody-color);
-  border-color: var(--melody-color);
-  color: #fff;
+.tempo-name {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
 }
 
-.tempo-radio-input:focus-visible + .tempo-radio-label {
+.tempo-bpm {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--melody-color);
+}
+
+.tempo-slider {
+  width: 100%;
+  height: 0.35rem;
+  margin: 0;
+  padding: 0;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--melody-color) 0%,
+    var(--melody-color) var(--tempo-slider-fill, 50%),
+    var(--border) var(--tempo-slider-fill, 50%),
+    var(--border) 100%
+  );
+  outline: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.tempo-slider::-webkit-slider-runnable-track {
+  height: 0.35rem;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.tempo-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 1rem;
+  height: 1rem;
+  margin-top: -0.325rem;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--melody-color);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.tempo-slider::-moz-range-track {
+  height: 0.35rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.tempo-slider::-moz-range-thumb {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--melody-color);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.tempo-slider:focus-visible {
   outline: 2px solid var(--melody-color);
-  outline-offset: 1px;
+  outline-offset: 2px;
 }
 
 .transport-locked .btn-meter,
-.transport-locked .tempo-radio-label {
+.transport-locked .tempo-slider {
   pointer-events: none;
   opacity: 0.45;
 }
@@ -733,22 +824,23 @@ body {
 }
 
 .btn-loop {
-  width: var(--transport-control-size);
-  height: var(--transport-control-size);
+  width: var(--play-size);
+  height: var(--play-size);
   flex-shrink: 0;
   border: none;
   border-radius: var(--radius-round);
   background: transparent;
   color: var(--text-muted);
-  font-size: 1.25rem;
+  font-size: 1.4rem;
   font-weight: 700;
+  line-height: 1;
   cursor: pointer;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  transition: color 0.15s, transform 0.1s;
+  transition: color 0.15s, background 0.15s, transform 0.1s;
 }
 
 .btn-loop:hover {
@@ -856,6 +948,7 @@ body {
 @media (pointer: coarse) {
   :root {
     --play-size: 72px;
+    --tempo-control-width: 8.4rem;
   }
 
   .app-top {
@@ -877,12 +970,19 @@ body {
     font-size: 0.95rem;
   }
 
-  .tempo-radio-label {
-    font-size: 0.68rem;
-    padding: 0 0.45rem;
+  .tempo-name {
+    font-size: 0.78rem;
+  }
+
+  .tempo-bpm {
+    font-size: 0.9rem;
   }
 
   .play-icon {
+    font-size: 1.6rem;
+  }
+
+  .btn-loop {
     font-size: 1.6rem;
   }
 
@@ -909,6 +1009,7 @@ body {
 @media (max-width: 640px) {
   :root {
     --play-size: 56px;
+    --transport-chip-width: 5.5rem;
   }
 
   .transport-bar {
@@ -916,17 +1017,15 @@ body {
     padding-bottom: max(0.45rem, env(safe-area-inset-bottom));
   }
 
-  .btn-meter {
-    min-width: 5.5rem;
-    padding: 0 0.5rem;
-  }
-
   .meter-label {
     font-size: 0.75rem;
   }
 
-  .tempo-radio-label {
-    font-size: 0.55rem;
-    padding: 0 0.25rem;
+  .tempo-name {
+    font-size: 0.65rem;
+  }
+
+  .tempo-bpm {
+    font-size: 0.78rem;
   }
 }
