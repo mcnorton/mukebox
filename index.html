@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>웹 뮤직 팩토리 — Web Music Factory</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="app-top">
+      <div class="app-top-brand">
+        <h1>웹 뮤직 팩토리</h1>
+        <span class="app-top-tag">Song Maker 스타일</span>
+      </div>
+      <button type="button" id="btn-help" class="btn-icon" title="사용 방법">?</button>
+    </header>
+
+    <div class="settings-strip">
+      <div class="setting-chip setting-chip-select">
+        <span class="setting-label">박자</span>
+        <select id="time-signature-select" class="setting-select" aria-label="박자 선택">
+          <option value="2/4">2/4</option>
+          <option value="3/4">3/4</option>
+          <option value="4/4" selected>4/4</option>
+          <option value="6/8">6/8</option>
+        </select>
+      </div>
+      <div class="setting-chip">
+        <span class="setting-label">♩</span>
+        <span class="setting-value" id="tempo-display">100</span>
+      </div>
+      <div class="setting-chip setting-hint">
+        더블클릭: 분할 · 드래그: 병합
+      </div>
+    </div>
+
+    <main class="sequencer-wrap">
+      <div id="tracks-container" class="sequencer"></div>
+    </main>
+
+    <footer class="transport-bar">
+      <div class="transport-group transport-left">
+        <button type="button" id="btn-save" class="btn-transport" title="저장">💾</button>
+        <label class="btn-transport btn-file" title="불러오기">
+          📂
+          <input type="file" id="file-upload" accept=".json,application/json" hidden>
+        </label>
+      </div>
+      <div class="transport-group transport-center">
+        <button type="button" id="btn-play" class="btn-play" title="재생">
+          <span class="play-icon">▶</span>
+        </button>
+        <button type="button" id="btn-stop" class="btn-stop-sm" title="정지">■</button>
+      </div>
+      <div class="transport-group transport-right">
+        <button type="button" id="btn-share" class="btn-transport" title="공유">🔗</button>
+      </div>
+    </footer>
+  </div>
+
+  <div id="help-modal" class="modal hidden" role="dialog" aria-labelledby="help-modal-title">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <h3 id="help-modal-title">사용 방법</h3>
+      <ul class="help-list">
+        <li><strong>멜로디</strong> — 칸을 클릭해 음을 켜고 끕니다. (C3~C5, 반음 포함)</li>
+        <li><strong>큰북</strong> — 아래 행의 칸을 클릭해 타격 on/off.</li>
+        <li><strong>분할</strong> — 칸 더블클릭 → 4분→8분→16분음표.</li>
+        <li><strong>병합</strong> — 같은 음의 인접 칸을 드래그 선택 → [OK].</li>
+        <li><strong>마디</strong> — 오른쪽 <strong>+</strong> 버튼으로 마디 추가.</li>
+      </ul>
+      <div class="modal-actions">
+        <button type="button" id="help-close" class="btn btn-primary">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="merge-modal" class="modal hidden" role="dialog" aria-labelledby="merge-modal-title">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <h3 id="merge-modal-title">칸 합치기</h3>
+      <p id="merge-modal-message"></p>
+      <div class="modal-actions">
+        <button type="button" id="merge-ok" class="btn btn-primary">OK</button>
+        <button type="button" id="merge-cancel" class="btn">취소</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden" role="status"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+  <script src="js/model.js"></script>
+  <script src="js/note-data.js"></script>
+  <script src="js/schedule.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/grid.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
