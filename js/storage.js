@@ -1,15 +1,19 @@
 /**
- * Web Music Factory — Save / load / URL share
+ * MukeBox — Save / load / URL share
  */
 
 (function () {
   const { serializeSong, deserializeSong, createDefaultSong } = window.WMF;
 
-  const STORAGE_KEY = 'web-music-factory-song';
+  const STORAGE_KEY = 'mukebox-song';
+  const LEGACY_STORAGE_KEY = 'web-music-factory-song';
 
   function saveToLocalStorage(song) {
     try {
       localStorage.setItem(STORAGE_KEY, serializeSong(song));
+      if (window.location.hash.startsWith('#song=')) {
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
     } catch (e) {
       console.warn('localStorage save failed', e);
     }
@@ -17,7 +21,16 @@
 
   function loadFromLocalStorage() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      let raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        raw = localStorage.getItem(LEGACY_STORAGE_KEY);
+        if (raw) {
+          const migrated = deserializeSong(raw);
+          saveToLocalStorage(migrated);
+          localStorage.removeItem(LEGACY_STORAGE_KEY);
+          return migrated;
+        }
+      }
       if (raw) return deserializeSong(raw);
     } catch (e) {
       console.warn('localStorage load failed', e);
@@ -30,7 +43,7 @@
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'my-song.json';
+    a.download = 'mukebox-song.json';
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -88,7 +101,16 @@
   }
 
   function loadInitialSong() {
-    return loadFromUrlHash() || loadFromLocalStorage() || createDefaultSong();
+    const stored = loadFromLocalStorage();
+    if (stored) return stored;
+
+    const fromHash = loadFromUrlHash();
+    if (fromHash) {
+      saveToLocalStorage(fromHash);
+      return fromHash;
+    }
+
+    return createDefaultSong();
   }
 
   window.WMF = window.WMF || {};

@@ -1,5 +1,5 @@
 /**
- * Web Music Factory — Note data v3 (beat-fraction cells + I/O)
+ * MukeBox — Note data v3 (beat-fraction cells + I/O)
  * 1 beat = dur { n: 1, d: 1 }
  */
 
@@ -13,6 +13,32 @@
   } = window.WMF;
 
   const SONG_VERSION = 3;
+
+  const TEMPO_PRESETS = [
+    { bpm: 60, label: '아다지오' },
+    { bpm: 90, label: '안단테' },
+    { bpm: 120, label: '모데라토' },
+    { bpm: 140, label: '알레그로' },
+    { bpm: 160, label: '프레스토' },
+  ];
+
+  const DEFAULT_TEMPO = 120;
+
+  function normalizeTempo(tempo) {
+    const bpm = Number(tempo);
+    if (!Number.isFinite(bpm)) return DEFAULT_TEMPO;
+
+    let nearest = TEMPO_PRESETS[0].bpm;
+    let minDiff = Math.abs(bpm - nearest);
+    TEMPO_PRESETS.forEach(({ bpm: presetBpm }) => {
+      const diff = Math.abs(bpm - presetBpm);
+      if (diff < minDiff) {
+        minDiff = diff;
+        nearest = presetBpm;
+      }
+    });
+    return nearest;
+  }
 
   // --- 박 기준 분수 (dur) 연산: 부동소수점 없이 음표 길이 표현 ---
 
@@ -134,7 +160,7 @@
     const timeSignature = { num: 4, den: 4 };
     return {
       version: SONG_VERSION,
-      tempo: 100,
+      tempo: DEFAULT_TEMPO,
       timeSignature,
       tracks: [
         createTrack('piano', timeSignature),
@@ -386,7 +412,7 @@
     const timeSignature = data.timeSignature || { num: 4, den: 4 };
     return {
       version: SONG_VERSION,
-      tempo: data.tempo ?? 100,
+      tempo: normalizeTempo(data.tempo ?? DEFAULT_TEMPO),
       timeSignature,
       tracks: (data.tracks || []).map((track) => ({
         ...track,
@@ -408,7 +434,7 @@
     const timeSignature = data.timeSignature || { num: 4, den: 4 };
     return {
       version: SONG_VERSION,
-      tempo: data.tempo ?? 100,
+      tempo: normalizeTempo(data.tempo ?? DEFAULT_TEMPO),
       timeSignature,
       tracks: (data.tracks || []).map((track) => ({
         ...track,
@@ -441,6 +467,9 @@
   window.WMF = window.WMF || {};
   Object.assign(window.WMF, {
     SONG_VERSION,
+    TEMPO_PRESETS,
+    DEFAULT_TEMPO,
+    normalizeTempo,
     dur,
     durAdd,
     durToFloat,

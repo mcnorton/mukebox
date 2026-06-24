@@ -1,5 +1,5 @@
 /**
- * Tone.js 연주 — schedule.js가 만든 이벤트만 재생
+ * MukeBox — Tone.js playback
  */
 
 (function () {
@@ -13,48 +13,101 @@
   let totalDuration = 0;
   let activeCells = [];
   let cellSchedule = [];
+  let audioReady = false;
+  let initPromise = null;
+  let loopEnabled = false;
+  let lastSong = null;
+  let onStateChange = null;
 
-  async function initAudio() {
-    await Tone.start();
-
-    if (!reverb) {
-      reverb = new Tone.Reverb({ decay: 2.5, wet: 0.2 }).toDestination();
-      await reverb.generate();
-    }
-
-    if (!pianoSynth) {
-      pianoSynth = new Tone.PolySynth(Tone.FMSynth, {
-        harmonicity: 3,
-        modulationIndex: 10,
-        detune: 0,
-        oscillator: { type: 'sine' },
-        envelope: { attack: 0.005, decay: 1.2, sustain: 0.1, release: 1.2 },
-        modulation: { type: 'square' },
-        modulationEnvelope: { attack: 0.002, decay: 0.2, sustain: 0, release: 0.2 },
-      });
-      pianoSynth.connect(reverb);
-      pianoSynth.volume.value = -8;
-    }
-
-    if (!drumSynth) {
-      drumSynth = new Tone.MembraneSynth({
-        pitchDecay: 0.05,
-        octaves: 4,
-        oscillator: { type: 'sine' },
-        envelope: { attack: 0.001, decay: 0.4, sustain: 0, release: 0.2 },
-      }).toDestination();
-      drumSynth.volume.value = -3;
-    }
-
-    return true;
+  function notifyStateChange() {
+    if (onStateChange) onStateChange(isPlaying);
   }
 
-  function stopPlayback() {
+  async function warmUpSynths() {
+    if (!pianoSynth || !drumSynth) return;
+
+    const now = Tone.now();
+    pianoSynth.triggerAttackRelease('C4', 0.001, now);
+    drumSynth.triggerAttackRelease('C2', 0.001, now + 0.01);
+    await Tone.context.resume();
+    await new Promise((resolve) => setTimeout(resolve, 80));
+  }
+
+  async function initAudio() {
+    if (audioReady) return true;
+    if (initPromise) return initPromise;
+
+    initPromise = (async () => {
+      await Tone.start();
+
+      if (!reverb) {
+        reverb = new Tone.Reverb({ decay: 2.5, wet: 0.2 }).toDestination();
+        await reverb.generate();
+      }
+
+      if (!pianoSynth) {
+        pianoSynth = new Tone.PolySynth(Tone.FMSynth, {
+          harmonicity: 3,
+          modulationIndex: 10,
+          detune: 0,
+          oscillator: { type: 'sine' },
+          envelope: { attack: 0.005, decay: 1.2, sustain: 0.1, release: 1.2 },
+          modulation: { type: 'square' },
+          modulationEnvelope: { attack: 0.002, decay: 0.2, sustain: 0, release: 0.2 },
+        });
+        pianoSynth.connect(reverb);
+        pianoSynth.volume.value = -8;
+      }
+
+      if (!drumSynth) {
+        drumSynth = new Tone.MembraneSynth({
+          pitchDecay: 0.05,
+          octaves: 4,
+          oscillator: { type: 'sine' },
+          envelope: { attack: 0.001, decay: 0.4, sustain: 0, release: 0.2 },
+        }).toDestination();
+        drumSynth.volume.value = -3;
+      }
+
+      await warmUpSynths();
+      audioReady = true;
+      return true;
+    })();
+
+    try {
+      return await initPromise;
+    } catch (err) {
+      initPromise = null;
+      throw err;
+    }
+  }
+
+  async function preloadAudio() {
+    return initAudio();
+  }
+
+  function isAudioReady() {
+    return audioReady;
+  }
+
+  function setLoopEnabled(enabled) {
+    loopEnabled = !!enabled;
+  }
+
+  function getLoopEnabled() {
+    return loopEnabled;
+  }
+
+  function clearTransport() {
     Tone.Transport.stop();
     Tone.Transport.cancel();
     Tone.Transport.position = 0;
     scheduledEvents.forEach((id) => Tone.Transport.clear(id));
     scheduledEvents = [];
+  }
+
+  function stopPlayback() {
+    clearTransport();
     isPlaying = false;
     progress = 0;
     activeCells = [];
@@ -65,22 +118,30 @@
       progressRaf = null;
     }
     if (window.WMF.Grid) window.WMF.Grid.updatePlayingHighlight();
+    notifyStateChange();
   }
 
-  function updateActiveCells(transportSeconds) {
-    activeCells = cellSchedule
-      .filter((c) => transportSeconds >= c.time && transportSeconds < c.endTime)
-      .map((c) => ({
-        pitch: c.pitch,
-        measureIndex: c.measureIndex,
-        cellIndex: c.cellIndex,
-        isDrum: c.isDrum,
-      }));
-  }
-
-  async function playSong(song) {
+  function finishPlayback() {
+    if (loopEnabled && lastSong) {
+      clearTransport();
+      isPlaying = false;
+      progress = 0;
+      activeCells = [];
+      if (progressRaf) {
+        cancelAnimationFrame(progressRaf);
+        progressRaf = null;
+      }
+      if (window.WMF.Grid) window.WMF.Grid.updatePlayingHighlight();
+      startPlayback(lastSong);
+      return;
+    }
     stopPlayback();
+  }
+
+  async function startPlayback(song) {
     await initAudio();
+
+    lastSong = song;
 
     const { Schedule } = window.WMF;
     const schedule = Schedule.buildSchedule(song);
@@ -110,6 +171,7 @@
     });
 
     isPlaying = true;
+    notifyStateChange();
     Tone.Transport.start();
 
     const animate = () => {
@@ -122,7 +184,7 @@
       if (window.WMF.Grid) window.WMF.Grid.updatePlayingHighlight();
 
       if (progress >= 1) {
-        stopPlayback();
+        finishPlayback();
         return;
       }
       progressRaf = requestAnimationFrame(animate);
@@ -130,8 +192,28 @@
     progressRaf = requestAnimationFrame(animate);
 
     Tone.Transport.scheduleOnce(() => {
-      stopPlayback();
+      finishPlayback();
     }, totalDuration + 0.05);
+  }
+
+  async function playSong(song) {
+    stopPlayback();
+    await startPlayback(song);
+  }
+
+  function updateActiveCells(transportSeconds) {
+    activeCells = cellSchedule
+      .filter((c) => transportSeconds >= c.time && transportSeconds < c.endTime)
+      .map((c) => ({
+        pitch: c.pitch,
+        measureIndex: c.measureIndex,
+        cellIndex: c.cellIndex,
+        isDrum: c.isDrum,
+      }));
+  }
+
+  function setTempo(bpm) {
+    Tone.Transport.bpm.value = bpm;
   }
 
   function getProgress() {
@@ -149,8 +231,15 @@
   window.WMF = window.WMF || {};
   window.WMF.Audio = {
     initAudio,
+    preloadAudio,
+    isAudioReady,
     playSong,
     stopPlayback,
+    setTempo,
+    setLoopEnabled,
+    getLoopEnabled,
+    get onStateChange() { return onStateChange; },
+    set onStateChange(cb) { onStateChange = cb; },
     getProgress,
     getIsPlaying,
     getActiveCells,

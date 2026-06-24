@@ -1,5 +1,6 @@
 /**
  * 피아노롤 UI — note-data.js API로 편집, dur 기준으로 칸 너비 렌더
+ * Pointer Events: 탭=토글, 드래그=즉시 병합, 롱프레스=분할
  */
 
 (function () {
@@ -19,28 +20,75 @@
     mergeCells,
     togglePercussionHit,
     getNoteLabelForCell,
-    getNoteLabelFromDur,
     durToSixteenths,
-    durAdd,
-    dur,
   } = window.WMF;
 
-  const BEAT_WIDTH = 48;
-  const ROW_HEIGHT = 22;
-  const BLACK_ROW_HEIGHT = 16;
-  const KEY_WIDTH = 64;
-  const RULER_HEIGHT = 32;
-  const CLICK_DELAY = 250;
+  let BEAT_WIDTH = 48;
+  let ROW_HEIGHT = 22;
+  let BLACK_ROW_HEIGHT = 16;
+  let KEY_WIDTH = 64;
+  let RULER_HEIGHT = 32;
+
+  const LONG_PRESS_MS = 500;
+  const MOVE_THRESHOLD = 8;
+  const TOGGLE_DELAY_MOUSE = 250;
 
   let song = null;
   let onChange = null;
   let mergeSelection = null;
-  let clickTimers = new Map();
+
+  function isCoarsePointer() {
+    return window.matchMedia('(pointer: coarse)').matches;
+  }
+
+  function updateLayoutSizes() {
+    const coarse = isCoarsePointer();
+    BEAT_WIDTH = coarse ? 60 : 48;
+    KEY_WIDTH = coarse ? 72 : 64;
+
+    const wrap = document.querySelector('.sequencer-wrap');
+    const availableH = wrap?.clientHeight
+      || window.innerHeight - (document.querySelector('.app-top')?.offsetHeight || 44)
+        - (document.querySelector('.transport-bar')?.offsetHeight || 64);
+
+    RULER_HEIGHT = coarse ? 36 : 28;
+
+    const whiteCount = PITCHES.filter((p) => !isBlackKey(p)).length;
+    const blackCount = PITCHES.length - whiteCount;
+    const blackWeight = coarse ? 28 / 38 : 16 / 22;
+    const drumRowUnits = 2;
+    const totalUnits = whiteCount + blackCount * blackWeight + drumRowUnits;
+    const rowArea = Math.max(0, availableH - RULER_HEIGHT);
+    const unitH = totalUnits > 0 ? rowArea / totalUnits : (coarse ? 38 : 22);
+
+    ROW_HEIGHT = Math.max(coarse ? 22 : 14, Math.floor(unitH));
+    BLACK_ROW_HEIGHT = Math.max(coarse ? 16 : 10, Math.floor(unitH * blackWeight));
+  }
+
+  updateLayoutSizes();
+
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      updateLayoutSizes();
+      if (song) render();
+    }, 100);
+  });
+
+  window.matchMedia('(pointer: coarse)').addEventListener('change', () => {
+    updateLayoutSizes();
+    if (song) render();
+  });
 
   function initGrid(initialSong, changeCallback) {
     song = initialSong;
     onChange = changeCallback;
     render();
+    requestAnimationFrame(() => {
+      updateLayoutSizes();
+      render();
+    });
   }
 
   function getSong() {
@@ -84,8 +132,8 @@
   function render() {
     const container = document.getElementById('tracks-container');
     if (!container) return;
+    updateLayoutSizes();
     container.innerHTML = '';
-    clickTimers.clear();
     container.dataset.timeSig = timeSignatureKey(song.timeSignature);
 
     const melodicTrack = song.tracks.find((t) => t.type === 'melodic');
@@ -259,6 +307,191 @@
     return `note-len-${sixteenths}`;
   }
 
+  function startMergeSelection(trackId, pitch, measureIndex, cellIndex, isDrum) {
+    mergeSelection = {
+      trackId,
+      pitch: isDrum ? null : pitch,
+      measureIndex,
+      startCell: cellIndex,
+      endCell: cellIndex,
+      isDrum,
+    };
+    highlightMergeSelection();
+  }
+
+  function updateMergeFromPoint(clientX, clientY, pitch, measureIndex, isDrum) {
+    const target = document.elementFromPoint(clientX, clientY);
+    const targetCell = target?.closest('.lane-cell');
+    if (!targetCell || !mergeSelection) return;
+
+    const targetIdx = parseInt(targetCell.dataset.cellIndex, 10);
+    const targetSeg = targetCell.closest('.lane-measure-seg');
+    const targetMeasureIdx = parseInt(targetSeg?.dataset.measureIndex, 10);
+    if (Number.isNaN(targetIdx) || targetMeasureIdx !== measureIndex) return;
+
+    if (isDrum) {
+      if (!targetCell.classList.contains('drum-lane-cell')) return;
+    } else if (targetCell.dataset.pitch !== pitch) {
+      return;
+    }
+
+    mergeSelection.endCell = targetIdx;
+    highlightMergeSelection();
+  }
+
+  function applyInstantMerge(measure, pitch, isDrum) {
+    if (!mergeSelection) return false;
+
+    const { startCell, endCell } = mergeSelection;
+    const start = Math.min(startCell, endCell);
+    const end = Math.max(startCell, endCell);
+    if (end <= start) return false;
+
+    const beatCount = getBeatCount(song.timeSignature);
+    if (isDrum) {
+      mergeCells(measure, start, end, beatCount);
+    } else {
+      mergeLaneCells(measure, pitch, start, end, beatCount);
+    }
+    return true;
+  }
+
+  function clearMergeHighlight() {
+    document.querySelectorAll('.lane-cell.selected-merge').forEach((el) => {
+      el.classList.remove('selected-merge');
+    });
+  }
+
+  function attachCellGestures(cellEl, config) {
+    const {
+      trackId, pitch, measureIndex, cellIndex, isDrum, measure,
+      onToggle, onSplit,
+    } = config;
+
+    let toggleTimer = null;
+
+    cellEl.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      e.preventDefault();
+
+      try {
+        cellEl.setPointerCapture(e.pointerId);
+      } catch {
+        /* capture may fail on some browsers */
+      }
+      cellEl.classList.add('pressed');
+
+      const gesture = {
+        pointerId: e.pointerId,
+        startX: e.clientX,
+        startY: e.clientY,
+        moved: false,
+        splitFired: false,
+        longPressTimer: null,
+      };
+
+      startMergeSelection(trackId, pitch, measureIndex, cellIndex, isDrum);
+
+      gesture.longPressTimer = setTimeout(() => {
+        if (gesture.moved) return;
+        gesture.splitFired = true;
+        clearMergeHighlight();
+        mergeSelection = null;
+        if (onSplit()) {
+          notifyChange();
+          render();
+        }
+      }, LONG_PRESS_MS);
+
+      const onPointerMove = (ev) => {
+        if (ev.pointerId !== gesture.pointerId) return;
+
+        const dx = ev.clientX - gesture.startX;
+        const dy = ev.clientY - gesture.startY;
+        if (!gesture.moved && Math.hypot(dx, dy) > MOVE_THRESHOLD) {
+          gesture.moved = true;
+          if (gesture.longPressTimer) {
+            clearTimeout(gesture.longPressTimer);
+            gesture.longPressTimer = null;
+          }
+        }
+
+        if (gesture.moved) {
+          updateMergeFromPoint(ev.clientX, ev.clientY, pitch, measureIndex, isDrum);
+        }
+      };
+
+      const finishGesture = (ev) => {
+        if (ev.pointerId !== gesture.pointerId) return;
+
+        try {
+          cellEl.releasePointerCapture(ev.pointerId);
+        } catch {
+          /* ignore */
+        }
+        cellEl.classList.remove('pressed');
+
+        if (gesture.longPressTimer) {
+          clearTimeout(gesture.longPressTimer);
+          gesture.longPressTimer = null;
+        }
+
+        cellEl.removeEventListener('pointermove', onPointerMove);
+        cellEl.removeEventListener('pointerup', finishGesture);
+        cellEl.removeEventListener('pointercancel', finishGesture);
+
+        if (gesture.splitFired) {
+          mergeSelection = null;
+          return;
+        }
+
+        clearMergeHighlight();
+
+        if (gesture.moved && mergeSelection) {
+          if (applyInstantMerge(measure, pitch, isDrum)) {
+            notifyChange();
+            render();
+          }
+          mergeSelection = null;
+          return;
+        }
+
+        mergeSelection = null;
+
+        if (!gesture.moved) {
+          const doToggle = () => {
+            onToggle();
+            notifyChange();
+            render();
+          };
+
+          if (ev.pointerType === 'mouse') {
+            toggleTimer = setTimeout(doToggle, TOGGLE_DELAY_MOUSE);
+          } else {
+            doToggle();
+          }
+        }
+      };
+
+      cellEl.addEventListener('pointermove', onPointerMove);
+      cellEl.addEventListener('pointerup', finishGesture);
+      cellEl.addEventListener('pointercancel', finishGesture);
+    });
+
+    cellEl.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (toggleTimer) {
+        clearTimeout(toggleTimer);
+        toggleTimer = null;
+      }
+      if (onSplit()) {
+        notifyChange();
+        render();
+      }
+    });
+  }
+
   function createLaneCellEl(track, measure, pitch, measureIndex, cell, cellIndex, inst) {
     const cellEl = document.createElement('button');
     cellEl.type = 'button';
@@ -271,53 +504,15 @@
     cellEl.style.setProperty('--note-color', inst.color);
     cellEl.title = `${pitch} · ${getNoteLabelForCell(cell)}음표`;
 
-    const timerKey = `${track.id}-${pitch}-${measureIndex}-${cellIndex}`;
-
-    cellEl.addEventListener('click', (e) => {
-      e.preventDefault();
-      if (clickTimers.has(timerKey)) {
-        clearTimeout(clickTimers.get(timerKey));
-        clickTimers.delete(timerKey);
-        return;
-      }
-      const timer = setTimeout(() => {
-        clickTimers.delete(timerKey);
-        toggleLaneCell(cell);
-        notifyChange();
-        render();
-      }, CLICK_DELAY);
-      clickTimers.set(timerKey, timer);
-    });
-
-    cellEl.addEventListener('dblclick', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (clickTimers.has(timerKey)) {
-        clearTimeout(clickTimers.get(timerKey));
-        clickTimers.delete(timerKey);
-      }
-      if (splitLaneCell(measure, pitch, cellIndex)) {
-        notifyChange();
-        render();
-      }
-    });
-
-    cellEl.addEventListener('mousedown', (e) => {
-      if (e.button !== 0) return;
-      e.preventDefault();
-      startMergeSelection(track.id, pitch, measureIndex, cellIndex);
-    });
-
-    cellEl.addEventListener('mouseenter', () => {
-      if (
-        mergeSelection
-        && mergeSelection.trackId === track.id
-        && mergeSelection.pitch === pitch
-        && mergeSelection.measureIndex === measureIndex
-      ) {
-        mergeSelection.endCell = cellIndex;
-        highlightMergeSelection();
-      }
+    attachCellGestures(cellEl, {
+      trackId: track.id,
+      pitch,
+      measureIndex,
+      cellIndex,
+      isDrum: false,
+      measure,
+      onToggle: () => toggleLaneCell(cell),
+      onSplit: () => splitLaneCell(measure, pitch, cellIndex),
     });
 
     return cellEl;
@@ -353,74 +548,22 @@
     cellEl.style.setProperty('--note-color', inst.color);
     cellEl.title = `${inst.name} · ${getNoteLabelForCell(cell)}음표`;
 
-    const timerKey = `drum-${track.id}-${measureIndex}-${cellIndex}`;
-
-    cellEl.addEventListener('click', (e) => {
-      e.preventDefault();
-      if (clickTimers.has(timerKey)) {
-        clearTimeout(clickTimers.get(timerKey));
-        clickTimers.delete(timerKey);
-        return;
-      }
-      const timer = setTimeout(() => {
-        clickTimers.delete(timerKey);
-        togglePercussionHit(cell);
-        notifyChange();
-        render();
-      }, CLICK_DELAY);
-      clickTimers.set(timerKey, timer);
-    });
-
-    cellEl.addEventListener('dblclick', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (clickTimers.has(timerKey)) {
-        clearTimeout(clickTimers.get(timerKey));
-        clickTimers.delete(timerKey);
-      }
-      if (splitCell(measure, cellIndex)) {
-        notifyChange();
-        render();
-      }
-    });
-
-    cellEl.addEventListener('mousedown', (e) => {
-      if (e.button !== 0) return;
-      e.preventDefault();
-      startDrumMergeSelection(track.id, measureIndex, cellIndex);
-    });
-
-    cellEl.addEventListener('mouseenter', () => {
-      if (
-        mergeSelection
-        && mergeSelection.trackId === track.id
-        && mergeSelection.isDrum
-        && mergeSelection.measureIndex === measureIndex
-      ) {
-        mergeSelection.endCell = cellIndex;
-        highlightMergeSelection();
-      }
+    attachCellGestures(cellEl, {
+      trackId: track.id,
+      pitch: null,
+      measureIndex,
+      cellIndex,
+      isDrum: true,
+      measure,
+      onToggle: () => togglePercussionHit(cell),
+      onSplit: () => splitCell(measure, cellIndex),
     });
 
     return cellEl;
   }
 
-  function startMergeSelection(trackId, pitch, measureIndex, cellIndex) {
-    mergeSelection = { trackId, pitch, measureIndex, startCell: cellIndex, endCell: cellIndex, isDrum: false };
-    highlightMergeSelection();
-    document.addEventListener('mouseup', onMergeMouseUp, { once: true });
-  }
-
-  function startDrumMergeSelection(trackId, measureIndex, cellIndex) {
-    mergeSelection = { trackId, pitch: null, measureIndex, startCell: cellIndex, endCell: cellIndex, isDrum: true };
-    highlightMergeSelection();
-    document.addEventListener('mouseup', onMergeMouseUp, { once: true });
-  }
-
   function highlightMergeSelection() {
-    document.querySelectorAll('.lane-cell.selected-merge').forEach((el) => {
-      el.classList.remove('selected-merge');
-    });
+    clearMergeHighlight();
     if (!mergeSelection) return;
 
     const start = Math.min(mergeSelection.startCell, mergeSelection.endCell);
@@ -448,67 +591,6 @@
       const idx = parseInt(cellEl.dataset.cellIndex, 10);
       if (idx >= start && idx <= end) cellEl.classList.add('selected-merge');
     });
-  }
-
-  function onMergeMouseUp() {
-    if (!mergeSelection) return;
-    const { trackId, pitch, measureIndex, startCell, endCell, isDrum } = mergeSelection;
-    const start = Math.min(startCell, endCell);
-    const end = Math.max(startCell, endCell);
-
-    document.querySelectorAll('.selected-merge').forEach((el) => el.classList.remove('selected-merge'));
-
-    if (end > start) showMergeModal(trackId, pitch, measureIndex, start, end, isDrum);
-    mergeSelection = null;
-  }
-
-  function showMergeModal(trackId, pitch, measureIndex, start, end, isDrum) {
-    const modal = document.getElementById('merge-modal');
-    const msg = document.getElementById('merge-modal-message');
-    const track = song.tracks.find((t) => t.id === trackId);
-    if (!track || !modal) return;
-
-    let totalDur;
-    let cellCount;
-    if (isDrum) {
-      const cells = track.measures[measureIndex].cells.slice(start, end + 1);
-      totalDur = cells.reduce((acc, c) => durAdd(acc, c.dur), dur(0, 1));
-      cellCount = cells.length;
-    } else {
-      const lane = track.measures[measureIndex].lanes[pitch];
-      const cells = lane.slice(start, end + 1);
-      totalDur = cells.reduce((acc, c) => durAdd(acc, c.dur), dur(0, 1));
-      cellCount = cells.length;
-    }
-
-    msg.textContent = `선택한 ${cellCount}칸을 ${getNoteLabelFromDur(totalDur)}음표로 합칠까요?`;
-    modal.classList.remove('hidden');
-
-    const okBtn = document.getElementById('merge-ok');
-    const cancelBtn = document.getElementById('merge-cancel');
-
-    const cleanup = () => {
-      modal.classList.add('hidden');
-      okBtn.removeEventListener('click', onOk);
-      cancelBtn.removeEventListener('click', onCancel);
-    };
-
-    const onOk = () => {
-      const beatCount = getBeatCount(song.timeSignature);
-      if (isDrum) {
-        mergeCells(track.measures[measureIndex], start, end, beatCount);
-      } else {
-        mergeLaneCells(track.measures[measureIndex], pitch, start, end, beatCount);
-      }
-      notifyChange();
-      render();
-      cleanup();
-    };
-
-    const onCancel = () => cleanup();
-
-    okBtn.addEventListener('click', onOk);
-    cancelBtn.addEventListener('click', onCancel);
   }
 
   function highlightPlayingCells() {
