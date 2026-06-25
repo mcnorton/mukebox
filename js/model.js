@@ -69,6 +69,7 @@ const INSTRUMENTS = {
     color: '#ff9800',
     pitches: ['hit'],
     pitchLabels: { hit: '♪' },
+    drumUnits: 2,
   },
   snareDrum: {
     id: 'snareDrum',
@@ -78,6 +79,17 @@ const INSTRUMENTS = {
     color: '#26a69a',
     pitches: ['hit'],
     pitchLabels: { hit: '♪' },
+    drumUnits: 1,
+  },
+  triangle: {
+    id: 'triangle',
+    name: '트라이앵글',
+    type: 'percussion',
+    section: 'percussion',
+    color: '#ab47bc',
+    pitches: ['hit'],
+    pitchLabels: { hit: '♪' },
+    drumUnits: 1,
   },
 };
 

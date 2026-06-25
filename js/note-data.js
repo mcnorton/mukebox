@@ -166,6 +166,7 @@
         createTrack('piano', timeSignature),
         createTrack('bassDrum', timeSignature),
         createTrack('snareDrum', timeSignature),
+        createTrack('triangle', timeSignature),
       ],
     };
   }
@@ -434,7 +435,7 @@
   function ensureDefaultPercussionTracks(song) {
     const timeSignature = song.timeSignature || { num: 4, den: 4 };
     const maxMeasures = Math.max(...song.tracks.map((t) => t.measures.length), 1);
-    const requiredPercussion = ['bassDrum', 'snareDrum'];
+    const requiredPercussion = ['bassDrum', 'snareDrum', 'triangle'];
 
     requiredPercussion.forEach((instrumentId) => {
       const exists = song.tracks.some((t) => t.instrument === instrumentId);

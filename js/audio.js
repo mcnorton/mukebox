@@ -6,6 +6,7 @@
   let pianoSynth = null;
   let drumSynth = null;
   let snareSynth = null;
+  let triangleSynth = null;
   let reverb = null;
   let isPlaying = false;
   let progress = 0;
@@ -25,12 +26,13 @@
   }
 
   async function warmUpSynths() {
-    if (!pianoSynth || !drumSynth || !snareSynth) return;
+    if (!pianoSynth || !drumSynth || !snareSynth || !triangleSynth) return;
 
     const now = Tone.now();
     pianoSynth.triggerAttackRelease('C4', 0.001, now);
     drumSynth.triggerAttackRelease('C2', 0.001, now + 0.01);
     snareSynth.triggerAttackRelease(0.001, now + 0.02);
+    triangleSynth.triggerAttackRelease('A6', 0.001, now + 0.03);
     await Tone.context.resume();
     await new Promise((resolve) => setTimeout(resolve, 80));
   }
@@ -78,6 +80,19 @@
         });
         snareSynth.connect(reverb);
         snareSynth.volume.value = -6;
+      }
+
+      if (!triangleSynth) {
+        triangleSynth = new Tone.MetalSynth({
+          frequency: 800,
+          harmonicity: 5.1,
+          modulationIndex: 32,
+          resonance: 5000,
+          octaves: 1.5,
+          envelope: { attack: 0.001, decay: 0.6, release: 0.2 },
+        });
+        triangleSynth.connect(reverb);
+        triangleSynth.volume.value = -20;
       }
 
       await warmUpSynths();
@@ -176,6 +191,8 @@
           pianoSynth.triggerAttackRelease(ev.pitch, ev.duration, t);
         } else if (ev.instrument === 'snareDrum') {
           snareSynth.triggerAttackRelease(ev.duration, t);
+        } else if (ev.instrument === 'triangle') {
+          triangleSynth.triggerAttackRelease('A6', ev.duration, t);
         } else {
           drumSynth.triggerAttackRelease(ev.pitch, ev.duration, t);
         }

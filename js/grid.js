@@ -56,8 +56,10 @@
     const whiteCount = PITCHES.filter((p) => !isBlackKey(p)).length;
     const blackCount = PITCHES.length - whiteCount;
     const blackWeight = coarse ? 28 / 38 : 16 / 22;
-    const percCount = song?.tracks.filter((t) => t.type === 'percussion').length || 2;
-    const drumRowUnits = 2 * percCount;
+    const percTracks = song?.tracks.filter((t) => t.type === 'percussion') || [];
+    const drumRowUnits = percTracks.length
+      ? percTracks.reduce((sum, t) => sum + (INSTRUMENTS[t.instrument]?.drumUnits || 2), 0)
+      : 4;
     const totalUnits = whiteCount + blackCount * blackWeight + drumRowUnits;
     const rowArea = Math.max(0, availableH - RULER_HEIGHT);
     const unitH = totalUnits > 0 ? rowArea / totalUnits : (coarse ? 38 : 22);
@@ -126,8 +128,9 @@
     return PITCHES.reduce((sum, pitch) => sum + rowHeight(pitch), 0);
   }
 
-  function totalDrumHeight() {
-    return ROW_HEIGHT * 2;
+  function totalDrumHeight(inst) {
+    const units = inst?.drumUnits || 2;
+    return ROW_HEIGHT * units;
   }
 
   function render() {
@@ -147,15 +150,19 @@
     const labelCol = document.createElement('div');
     labelCol.className = 'label-col piano-keys';
     labelCol.style.width = `${KEY_WIDTH}px`;
+    labelCol.style.setProperty('--key-black-inset', `${Math.round(KEY_WIDTH * 0.44)}px`);
 
     const rulerSpacer = document.createElement('div');
     rulerSpacer.className = 'ruler-spacer';
     rulerSpacer.style.height = `${RULER_HEIGHT}px`;
     labelCol.appendChild(rulerSpacer);
 
+    const melodyLabelArea = document.createElement('div');
+    melodyLabelArea.className = 'melody-label-area';
     PITCHES.forEach((pitch) => {
-      labelCol.appendChild(createPianoKey(pitch));
+      melodyLabelArea.appendChild(createPianoKey(pitch));
     });
+    labelCol.appendChild(melodyLabelArea);
 
     percTracks.forEach((track) => {
       const inst = INSTRUMENTS[track.instrument];
@@ -225,24 +232,33 @@
     key.style.height = `${rowHeight(pitch)}px`;
     key.title = pitch;
 
-    const solfege = document.createElement('span');
-    solfege.className = 'key-solfege';
-    solfege.textContent = getSolfege(pitch);
+    if (!black) {
+      const idx = PITCHES.indexOf(pitch);
+      const below = idx < PITCHES.length - 1 ? PITCHES[idx + 1] : null;
+      if (below && !isBlackKey(below)) {
+        key.classList.add('white-adjacent-below');
+      }
 
-    const octave = document.createElement('span');
-    octave.className = 'key-octave';
-    const { octave: oct } = window.WMF.parsePitch(pitch);
-    octave.textContent = String(oct);
+      const solfege = document.createElement('span');
+      solfege.className = 'key-solfege';
+      solfege.textContent = getSolfege(pitch);
 
-    key.appendChild(solfege);
-    if (!black) key.appendChild(octave);
+      const octave = document.createElement('span');
+      octave.className = 'key-octave';
+      const { octave: oct } = window.WMF.parsePitch(pitch);
+      octave.textContent = String(oct);
+
+      key.appendChild(solfege);
+      key.appendChild(octave);
+    }
+
     return key;
   }
 
   function createDrumKeyLabel(inst) {
     const key = document.createElement('div');
     key.className = 'piano-key drum-key-panel';
-    key.style.height = `${totalDrumHeight()}px`;
+    key.style.height = `${totalDrumHeight(inst)}px`;
     key.style.setProperty('--drum-color', inst.color);
     key.title = inst.name;
 
@@ -250,11 +266,6 @@
     label.className = 'drum-key-label';
     label.textContent = inst.name;
 
-    const icon = document.createElement('span');
-    icon.className = 'drum-key-icon';
-    icon.textContent = '♪';
-
-    key.appendChild(icon);
     key.appendChild(label);
     return key;
   }
@@ -524,7 +535,7 @@
   function renderDrumLaneRow(track, inst) {
     const row = document.createElement('div');
     row.className = 'lane-row drum-lane-row white-key-row';
-    row.style.height = `${totalDrumHeight()}px`;
+    row.style.height = `${totalDrumHeight(inst)}px`;
 
     track.measures.forEach((measure, measureIndex) => {
       const seg = document.createElement('div');
