@@ -324,6 +324,7 @@
   function openLangPopover() {
     if (!langPopover || !btnLang) return;
     closeMeterPopover();
+    closeLibraryPopover();
     langPopover.classList.remove('hidden');
     positionLangPopover();
     btnLang.setAttribute('aria-expanded', 'true');
@@ -589,15 +590,17 @@
     });
   });
 
+  document.addEventListener('pointerdown', (e) => {
+    if (!libraryPopover || libraryPopover.classList.contains('hidden')) return;
+    if (!e.target.closest('#library-control')) closeLibraryPopover();
+  }, true);
+
   document.addEventListener('click', (e) => {
     if (meterPopover && !meterPopover.classList.contains('hidden')) {
       if (!e.target.closest('#meter-control')) closeMeterPopover();
     }
     if (langPopover && !langPopover.classList.contains('hidden')) {
       if (!e.target.closest('#lang-control')) closeLangPopover();
-    }
-    if (libraryPopover && !libraryPopover.classList.contains('hidden')) {
-      if (!e.target.closest('#library-control')) closeLibraryPopover();
     }
   });
 

@@ -70,9 +70,9 @@ const INSTRUMENTS = {
     type: 'percussion',
     section: 'percussion',
     color: '#ff9800',
-    symbol: '■',
+    symbol: '●',
     pitches: ['hit'],
-    pitchLabels: { hit: '■' },
+    pitchLabels: { hit: '●' },
     drumUnits: 2,
   },
   snareDrum: {
@@ -81,9 +81,9 @@ const INSTRUMENTS = {
     type: 'percussion',
     section: 'percussion',
     color: '#26a69a',
-    symbol: '●',
+    symbol: '■',
     pitches: ['hit'],
-    pitchLabels: { hit: '●' },
+    pitchLabels: { hit: '■' },
     drumUnits: 1,
   },
   triangle: {
