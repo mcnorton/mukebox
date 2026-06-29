@@ -5,7 +5,7 @@
 (function () {
   const {
     Grid, Audio, Storage, setTimeSignature, timeSignatureKey, normalizeTempo, TEMPO_PRESETS,
-    trimTrailingEmptyMeasures, getSolfege,
+    trimTrailingEmptyMeasures, getSolfege, createDefaultSong,
   } = window.WMF;
   const I18n = window.WMF.I18n;
 
@@ -30,11 +30,19 @@
   const btnRename = document.getElementById('btn-rename');
   const btnAutosave = document.getElementById('btn-autosave');
   const btnExport = document.getElementById('btn-export');
+  const appTopLeft = document.querySelector('.app-top-left');
+  const libraryControl = document.getElementById('library-control');
+  const btnLibrary = document.getElementById('btn-library');
+  const libraryPopover = document.getElementById('library-popover');
+  const btnNewScore = document.getElementById('btn-new-score');
+  const deleteModal = document.getElementById('delete-score-modal');
 
   const AUTOSAVE_DELAY_MS = 10000;
   let autosaveTimer = null;
   let isDirty = false;
   let isRenaming = false;
+  let selectedLibraryId = null;
+  let pendingDeleteId = null;
 
   function updateSongNameDisplay() {
     if (!songNameEl || isRenaming) return;
@@ -78,7 +86,24 @@
   function performAutosave() {
     song = Grid.getSong();
     song.tempo = normalizeTempo(song.tempo);
-    Storage.saveToLocalStorage(song);
+    try {
+      Storage.saveActiveSong(song);
+      setAutosaveSaved();
+    } catch {
+      showToast(I18n.t('toastStorageFull'));
+    }
+  }
+
+  /** 현재 악보를 저장하고 다른 악보로 전환 (재생 중이면 정지) */
+  function switchToSong(nextSong) {
+    if (Audio.getIsPlaying()) Audio.stopPlayback();
+    song = nextSong;
+    song.tempo = normalizeTempo(song.tempo);
+    if (typeof song.name !== 'string') song.name = '';
+    Grid.setSong(song);
+    syncMeterLabel();
+    syncTempoSlider();
+    updateSongNameDisplay();
     setAutosaveSaved();
   }
 
@@ -89,6 +114,11 @@
       autosaveTimer = null;
       performAutosave();
     }, AUTOSAVE_DELAY_MS);
+  }
+
+  /** 탭 이탈·숨김 시 보류 중인 변경을 즉시 저장 (디바운스 유실 방지) */
+  function flushAutosave() {
+    if (isDirty) performAutosave();
   }
 
   function startRenameEdit() {
@@ -205,6 +235,9 @@
     updateLangSelectedState();
     updateSongNameDisplay();
     updateAutosaveButton();
+    if (libraryPopover && !libraryPopover.classList.contains('hidden')) {
+      renderLibraryList();
+    }
   }
 
   function setTransportLocked(locked) {
@@ -306,6 +339,171 @@
     }
   }
 
+  function positionLibraryPopover() {
+    if (!libraryPopover || !btnLibrary) return;
+    const rect = btnLibrary.getBoundingClientRect();
+    const margin = 8;
+    libraryPopover.style.top = `${rect.bottom + 8}px`;
+
+    const width = libraryPopover.offsetWidth || libraryPopover.getBoundingClientRect().width;
+    let left = rect.left;
+    if (left + width > window.innerWidth - margin) {
+      left = window.innerWidth - margin - width;
+    }
+    left = Math.max(margin, left);
+    libraryPopover.style.left = `${left}px`;
+    libraryPopover.style.setProperty('--library-arrow-left', `${rect.left + rect.width / 2 - left}px`);
+  }
+
+  function renderLibraryList() {
+    if (!libraryPopover) return;
+    libraryPopover.innerHTML = '';
+
+    const entries = Storage.listLibraryEntries();
+    if (!entries.length) {
+      const empty = document.createElement('div');
+      empty.className = 'library-empty';
+      empty.textContent = I18n.t('libraryEmpty');
+      libraryPopover.appendChild(empty);
+      return;
+    }
+
+    const activeId = Storage.getActiveId();
+
+    entries.forEach((entry) => {
+      const row = document.createElement('div');
+      row.className = 'library-row';
+      row.dataset.id = entry.id;
+      row.setAttribute('role', 'option');
+      if (entry.id === activeId) row.classList.add('is-active');
+      if (entry.id === selectedLibraryId) row.classList.add('is-selected');
+
+      const nameEl = document.createElement('span');
+      nameEl.className = 'library-row-name';
+      nameEl.textContent = Storage.getDisplayName(entry, entries);
+      row.appendChild(nameEl);
+
+      const actions = document.createElement('div');
+      actions.className = 'library-row-actions';
+
+      const openBtn = document.createElement('button');
+      openBtn.type = 'button';
+      openBtn.className = 'library-open-btn';
+      openBtn.textContent = I18n.t('open');
+      openBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openLibrarySong(entry.id);
+      });
+      actions.appendChild(openBtn);
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'library-delete-btn';
+      deleteBtn.textContent = '🗑️';
+      deleteBtn.setAttribute('aria-label', I18n.t('delete'));
+      deleteBtn.title = I18n.t('delete');
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openDeleteModal(entry.id);
+      });
+      actions.appendChild(deleteBtn);
+
+      row.appendChild(actions);
+
+      row.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectedLibraryId = selectedLibraryId === entry.id ? null : entry.id;
+        renderLibraryList();
+      });
+
+      libraryPopover.appendChild(row);
+    });
+  }
+
+  function closeLibraryPopover() {
+    if (!libraryPopover || !btnLibrary) return;
+    libraryPopover.classList.add('hidden');
+    btnLibrary.setAttribute('aria-expanded', 'false');
+    appTopLeft?.classList.remove('is-open');
+  }
+
+  function openLibraryPopover() {
+    if (!libraryPopover || !btnLibrary) return;
+    closeLangPopover();
+    closeMeterPopover();
+    selectedLibraryId = null;
+    renderLibraryList();
+    libraryPopover.classList.remove('hidden');
+    positionLibraryPopover();
+    btnLibrary.setAttribute('aria-expanded', 'true');
+    appTopLeft?.classList.add('is-open');
+  }
+
+  function toggleLibraryPopover() {
+    if (!libraryPopover) return;
+    if (libraryPopover.classList.contains('hidden')) {
+      openLibraryPopover();
+    } else {
+      closeLibraryPopover();
+    }
+  }
+
+  function openLibrarySong(id) {
+    performAutosave();
+    const next = Storage.loadSongById(id);
+    if (!next) return;
+    Storage.setActiveId(id);
+    switchToSong(next);
+    closeLibraryPopover();
+    showToast(I18n.t('toastScoreOpened'));
+  }
+
+  function openDeleteModal(id) {
+    pendingDeleteId = id;
+    deleteModal?.classList.remove('hidden');
+  }
+
+  function closeDeleteModal() {
+    pendingDeleteId = null;
+    deleteModal?.classList.add('hidden');
+  }
+
+  function confirmDelete() {
+    const id = pendingDeleteId;
+    if (!id) return;
+    const wasActive = Storage.getActiveId() === id;
+    Storage.deleteLibraryEntry(id);
+    if (selectedLibraryId === id) selectedLibraryId = null;
+
+    if (wasActive) {
+      const entries = Storage.listLibraryEntries();
+      if (entries.length) {
+        const next = Storage.loadSongById(entries[0].id);
+        if (next) {
+          Storage.setActiveId(entries[0].id);
+          switchToSong(next);
+        }
+      } else {
+        const fresh = createDefaultSong();
+        Storage.createLibraryEntry(fresh);
+        switchToSong(fresh);
+      }
+    }
+
+    closeDeleteModal();
+    if (!libraryPopover?.classList.contains('hidden')) renderLibraryList();
+    showToast(I18n.t('toastScoreDeleted'));
+  }
+
+  function createNewScore() {
+    performAutosave();
+    const fresh = createDefaultSong();
+    Storage.createLibraryEntry(fresh);
+    switchToSong(fresh);
+    closeLibraryPopover();
+    showToast(I18n.t('toastNewScore'));
+  }
+
   function onSongChange(updated) {
     song = updated || Grid.getSong();
     song.tempo = normalizeTempo(song.tempo);
@@ -398,6 +596,9 @@
     if (langPopover && !langPopover.classList.contains('hidden')) {
       if (!e.target.closest('#lang-control')) closeLangPopover();
     }
+    if (libraryPopover && !libraryPopover.classList.contains('hidden')) {
+      if (!e.target.closest('#library-control')) closeLibraryPopover();
+    }
   });
 
   window.addEventListener('resize', () => {
@@ -406,6 +607,9 @@
     }
     if (langPopover && !langPopover.classList.contains('hidden')) {
       positionLangPopover();
+    }
+    if (libraryPopover && !libraryPopover.classList.contains('hidden')) {
+      positionLibraryPopover();
     }
   });
 
@@ -477,21 +681,31 @@
     const file = e.target.files[0];
     if (!file) return;
     try {
-      song = await Storage.uploadJson(file);
-      song.tempo = normalizeTempo(song.tempo);
-      if (typeof song.name !== 'string') song.name = '';
-      Grid.setSong(song);
-      syncMeterLabel();
-      syncTempoSlider();
-      updateSongNameDisplay();
-      Storage.saveToLocalStorage(song);
-      setAutosaveSaved();
+      performAutosave();
+      const imported = await Storage.uploadJson(file);
+      if (typeof imported.name !== 'string') imported.name = '';
+      Storage.createLibraryEntry(imported);
+      switchToSong(imported);
       showToast(I18n.t('toastImported'));
     } catch {
       showToast(I18n.t('toastReadError'));
     }
     e.target.value = '';
   });
+
+  btnLibrary?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleLibraryPopover();
+  });
+
+  btnNewScore?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    createNewScore();
+  });
+
+  document.getElementById('delete-confirm')?.addEventListener('click', confirmDelete);
+  document.getElementById('delete-cancel')?.addEventListener('click', closeDeleteModal);
+  deleteModal?.querySelector('.modal-backdrop')?.addEventListener('click', closeDeleteModal);
 
   const helpModal = document.getElementById('help-modal');
   document.getElementById('btn-help')?.addEventListener('click', () => {
@@ -502,5 +716,10 @@
   });
   helpModal?.querySelector('.modal-backdrop')?.addEventListener('click', () => {
     helpModal.classList.add('hidden');
+  });
+
+  window.addEventListener('pagehide', flushAutosave);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushAutosave();
   });
 })();

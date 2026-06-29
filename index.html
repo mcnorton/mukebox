@@ -9,12 +9,19 @@
 <body>
   <div class="app">
     <header class="app-top">
-      <div class="app-top-lang" id="lang-control">
-        <button type="button" id="btn-lang" class="btn-icon" aria-haspopup="listbox" aria-expanded="false" data-i18n-aria="language">🌐</button>
-        <div id="lang-popover" class="meter-popover lang-popover hidden" role="listbox" data-i18n-aria="language">
-          <button type="button" class="meter-option lang-option is-default" data-lang="ko" role="option">한글</button>
-          <button type="button" class="meter-option lang-option" data-lang="en" role="option">English</button>
+      <div class="app-top-left">
+        <div class="app-top-lang" id="lang-control">
+          <button type="button" id="btn-lang" class="btn-icon" aria-haspopup="listbox" aria-expanded="false" data-i18n-aria="language">🌐</button>
+          <div id="lang-popover" class="meter-popover lang-popover hidden" role="listbox" data-i18n-aria="language">
+            <button type="button" class="meter-option lang-option is-default" data-lang="ko" role="option">한글</button>
+            <button type="button" class="meter-option lang-option" data-lang="en" role="option">English</button>
+          </div>
         </div>
+        <div class="library-control" id="library-control">
+          <button type="button" id="btn-library" class="btn-autosave is-saved" aria-haspopup="listbox" aria-expanded="false" data-i18n="library" data-i18n-aria="library">악보목록</button>
+          <div id="library-popover" class="meter-popover library-popover hidden" role="listbox" data-i18n-aria="library"></div>
+        </div>
+        <button type="button" id="btn-new-score" class="btn-autosave is-saved" data-i18n="newScore" data-i18n-aria="newScore">새 악보</button>
       </div>
       <h1 class="app-top-title">
         <span class="app-top-brand">MukeBox</span>
@@ -97,6 +104,18 @@
       </ul>
       <div class="modal-actions">
         <button type="button" id="help-close" class="btn btn-primary" data-i18n="close">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="delete-score-modal" class="modal hidden" role="dialog" aria-labelledby="delete-score-title">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <h3 id="delete-score-title" data-i18n="deleteScoreTitle">악보 삭제</h3>
+      <p data-i18n="deleteScoreMessage">악보를 지우면 되살릴 수 없어요.</p>
+      <div class="modal-actions">
+        <button type="button" id="delete-cancel" class="btn btn-secondary" data-i18n="cancel">취소</button>
+        <button type="button" id="delete-confirm" class="btn btn-primary" data-i18n="confirm">확인</button>
       </div>
     </div>
   </div>

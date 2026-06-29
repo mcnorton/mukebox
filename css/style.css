@@ -186,16 +186,131 @@ body {
   z-index: 1;
 }
 
-.app-top-lang {
+.app-top-left {
   grid-column: 1;
   grid-row: 1;
   justify-self: start;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
   position: relative;
   z-index: 1;
 }
 
-.app-top-lang.is-open {
+.app-top-left.is-open {
   z-index: 100;
+}
+
+.app-top-lang,
+.library-control {
+  position: relative;
+}
+
+.meter-popover.library-popover {
+  transform: none;
+  min-width: 11rem;
+  max-width: 16rem;
+  max-height: calc(10 * 2.5rem + 1rem);
+  overflow-y: auto;
+  gap: 0.15rem;
+  z-index: 300;
+}
+
+.meter-popover.library-popover::after {
+  bottom: auto;
+  top: -7px;
+  left: var(--library-arrow-left, 1.5rem);
+  transform: translateX(-50%);
+  border-top-color: transparent;
+  border-bottom-color: var(--surface);
+  filter: drop-shadow(0 -2px 1px rgba(0, 0, 0, 0.06));
+}
+
+.library-empty {
+  padding: 0.6rem 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.library-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.library-row:hover {
+  background: var(--bg);
+}
+
+.library-row.is-selected {
+  background: var(--bg);
+}
+
+.library-row.is-active .library-row-name {
+  font-weight: 700;
+  color: var(--melody-color);
+}
+
+.library-row-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.library-row-actions {
+  display: none;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.library-row.is-selected .library-row-actions {
+  display: flex;
+}
+
+.library-open-btn {
+  padding: 0.25rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.library-delete-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+}
+
+.library-delete-btn:hover {
+  background: var(--bg);
+}
+
+.btn-secondary {
+  background: var(--surface);
+  color: var(--text);
 }
 
 .btn-icon {
