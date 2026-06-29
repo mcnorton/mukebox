@@ -206,7 +206,7 @@ body {
 .piano-key {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   padding: 0 6px;
   user-select: none;
   flex-shrink: 0;
@@ -247,12 +247,6 @@ body {
 .key-solfege {
   font-size: 0.72rem;
   font-weight: 700;
-}
-
-.key-octave {
-  font-size: 0.6rem;
-  color: var(--text-muted);
-  opacity: 0.7;
 }
 
 .piano-key.black .key-solfege {
@@ -330,24 +324,12 @@ body {
   background: rgba(240, 98, 146, 0.15);
 }
 
-/* 음표 길이별 둥근 모서리 */
-.lane-cell.note-len-1.active,
-.drum-lane-cell.note-len-1.active { border-radius: 3px; }
-
-.lane-cell.note-len-2.active,
-.drum-lane-cell.note-len-2.active { border-radius: 5px; }
-
-.lane-cell.note-len-4.active,
-.drum-lane-cell.note-len-4.active { border-radius: 8px; }
-
-.lane-cell.note-len-8.active,
-.drum-lane-cell.note-len-8.active { border-radius: 12px; }
-
-.lane-cell.note-len-16.active,
-.drum-lane-cell.note-len-16.active { border-radius: 999px; }
-
-.lane-cell.active {
-  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.12);
+/* 음표 모서리: 길이와 무관하게 알약(pill) 스타일로 통일.
+   배경을 안쪽(content-box)으로 클리핑해 인접 음표 사이에 간격을 만든다. */
+.lane-cell.active,
+.drum-lane-cell.active {
+  border-radius: 999px;
+  background-clip: content-box;
 }
 
 .lane-cell.active.white-key-note {

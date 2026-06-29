@@ -159,7 +159,7 @@
 
   function createDefaultSong() {
     const timeSignature = { num: 4, den: 4 };
-    return {
+    const song = {
       version: SONG_VERSION,
       tempo: DEFAULT_TEMPO,
       timeSignature,
@@ -170,6 +170,11 @@
         createTrack('triangle', timeSignature),
       ],
     };
+    // 4마디 기준: createTrack은 1마디로 시작하므로 나머지를 채워 4마디로 맞춘다.
+    if (MEASURES_PER_ADD > 1) {
+      addMeasuresToAllTracks(song, MEASURES_PER_ADD - 1);
+    }
+    return song;
   }
 
   function addMeasure(track, timeSignature) {
@@ -366,15 +371,67 @@
     return null;
   }
 
-  function isMergedLongDur(d) {
-    return d.d === 1 && d.n > 1;
+  function laneCellIsEmpty(cell) {
+    return !cell.on;
   }
 
-  function expandToBeatCells(durVal, isPercussion) {
-    const count = durVal.n;
-    return Array.from({ length: count }, () => (
-      isPercussion ? createPercussionCell(dur(1, 1)) : createLaneCell(dur(1, 1), false)
-    ));
+  function percussionCellIsEmpty(cell) {
+    return !cell.notes.includes('hit');
+  }
+
+  /**
+   * 빈 칸(음표 없는 칸)을 박 경계에 맞춰 1박(dur 1/1) 단위로 재구성한다.
+   * - 박 전체가 비면 1/1 한 칸으로 합친다.
+   * - 음표가 일부 차지한 박의 남은 빈 구간은 박을 넘지 않는 선에서 한 칸으로 합친다.
+   * dur은 박 단위 분수라 박 경계는 항상 정수이며, 박자와 무관하게 동작한다.
+   */
+  function collapseEmptyCells(cells, isEmpty, makeEmpty) {
+    const result = [];
+    let offset = dur(0, 1);
+
+    const pushEmpty = (d) => {
+      if (durCmp(d, dur(0, 1)) > 0) result.push(makeEmpty(d));
+    };
+
+    let i = 0;
+    while (i < cells.length) {
+      if (!isEmpty(cells[i])) {
+        result.push(cells[i]);
+        offset = durAdd(offset, cells[i].dur);
+        i += 1;
+        continue;
+      }
+
+      const runStart = offset;
+      let runEnd = offset;
+      while (i < cells.length && isEmpty(cells[i])) {
+        runEnd = durAdd(runEnd, cells[i].dur);
+        i += 1;
+      }
+      offset = runEnd;
+
+      const startBeats = runStart.n / runStart.d;
+      const endBeats = runEnd.n / runEnd.d;
+      const firstBoundary = Math.ceil(startBeats);
+
+      if (firstBoundary >= endBeats) {
+        // 박 경계를 넘지 않는 빈 구간 → 하나로 합침
+        pushEmpty(durSub(runEnd, runStart));
+      } else {
+        if (firstBoundary > startBeats) {
+          pushEmpty(durSub(dur(firstBoundary, 1), runStart));
+        }
+        const lastBoundary = Math.floor(endBeats);
+        for (let b = firstBoundary; b < lastBoundary; b += 1) {
+          pushEmpty(dur(1, 1));
+        }
+        if (lastBoundary < endBeats) {
+          pushEmpty(durSub(runEnd, dur(lastBoundary, 1)));
+        }
+      }
+    }
+
+    return result;
   }
 
   function toggleLaneCellAt(measure, pitch, cellIndex) {
@@ -385,9 +442,11 @@
 
     if (cell.on) {
       cell.on = false;
-      if (isMergedLongDur(cell.dur)) {
-        lane.splice(cellIndex, 1, ...expandToBeatCells(cell.dur, false));
-      }
+      measure.lanes[pitch] = collapseEmptyCells(
+        lane,
+        laneCellIsEmpty,
+        (d) => createLaneCell(d, false),
+      );
     } else {
       cell.on = true;
     }
@@ -460,9 +519,11 @@
 
     if (cell.notes.includes('hit')) {
       cell.notes = [];
-      if (isMergedLongDur(cell.dur)) {
-        measure.cells.splice(cellIndex, 1, ...expandToBeatCells(cell.dur, true));
-      }
+      measure.cells = collapseEmptyCells(
+        measure.cells,
+        percussionCellIsEmpty,
+        (d) => createPercussionCell(d, []),
+      );
     } else {
       cell.notes = ['hit'];
     }
@@ -536,6 +597,40 @@
     });
   }
 
+  /** 4마디 기준: 모든 트랙을 최소 MEASURES_PER_ADD마디로, 트랙 간 길이도 동일하게 맞춘다. */
+  function ensureMinimumMeasures(song) {
+    const timeSignature = song.timeSignature || { num: 4, den: 4 };
+    const maxMeasures = Math.max(...song.tracks.map((t) => t.measures.length), 1);
+    const target = Math.max(maxMeasures, MEASURES_PER_ADD);
+    song.tracks.forEach((track) => {
+      while (track.measures.length < target) {
+        addMeasure(track, timeSignature);
+      }
+    });
+  }
+
+  /** 한 마디의 빈 칸들을 1박 기준으로 정리 */
+  function normalizeMeasureEmpties(measure, type) {
+    if (type === 'melodic' && measure.lanes) {
+      PITCHES.forEach((pitch) => {
+        const lane = measure.lanes[pitch];
+        if (lane) {
+          measure.lanes[pitch] = collapseEmptyCells(
+            lane,
+            laneCellIsEmpty,
+            (d) => createLaneCell(d, false),
+          );
+        }
+      });
+    } else if (measure.cells) {
+      measure.cells = collapseEmptyCells(
+        measure.cells,
+        percussionCellIsEmpty,
+        (d) => createPercussionCell(d, []),
+      );
+    }
+  }
+
   function normalizeV3Song(data) {
     const timeSignature = data.timeSignature || { num: 4, den: 4 };
     const song = {
@@ -557,6 +652,10 @@
       })),
     };
     ensureDefaultPercussionTracks(song);
+    ensureMinimumMeasures(song);
+    song.tracks.forEach((track) => {
+      track.measures.forEach((m) => normalizeMeasureEmpties(m, track.type));
+    });
     return song;
   }
 

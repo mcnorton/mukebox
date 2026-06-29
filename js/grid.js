@@ -27,7 +27,12 @@
   let ROW_HEIGHT = 22;
   let BLACK_ROW_HEIGHT = 16;
   let KEY_WIDTH = 64;
-  let RULER_HEIGHT = 32;
+  let RULER_HEIGHT = 28;
+  let ADD_COL_WIDTH = 44;
+
+  // 빈 영역이 생기지 않도록 악보를 가로세로 동일 비율로 확대할 때의 한계
+  const MIN_FILL_SCALE = 1;
+  const MAX_FILL_SCALE = 4;
 
   const LONG_PRESS_MS = 500;
   const MOVE_THRESHOLD = 8;
@@ -88,13 +93,68 @@
     });
   }
 
-  function updateLayoutSizes() {
+  function baseLayoutSizes() {
     const coarse = isCoarsePointer();
-    BEAT_WIDTH = coarse ? 44 : 48;
-    KEY_WIDTH = coarse ? 60 : 64;
-    RULER_HEIGHT = coarse ? 30 : 28;
-    ROW_HEIGHT = coarse ? 16 : 22;
-    BLACK_ROW_HEIGHT = coarse ? 12 : 16;
+    return {
+      beat: coarse ? 44 : 48,
+      key: coarse ? 60 : 64,
+      ruler: coarse ? 30 : 28,
+      row: coarse ? 16 : 22,
+      blackRow: coarse ? 12 : 16,
+      addCol: coarse ? 52 : 44,
+    };
+  }
+
+  function applyLayoutSizes(base, scale) {
+    BEAT_WIDTH = Math.round(base.beat * scale);
+    KEY_WIDTH = Math.round(base.key * scale);
+    RULER_HEIGHT = Math.round(base.ruler * scale);
+    ROW_HEIGHT = Math.round(base.row * scale);
+    BLACK_ROW_HEIGHT = Math.round(base.blackRow * scale);
+    ADD_COL_WIDTH = Math.round(base.addCol * scale);
+  }
+
+  function updateLayoutSizes() {
+    applyLayoutSizes(baseLayoutSizes(), 1);
+  }
+
+  /** base 크기로 그렸을 때의 악보 콘텐츠 자연 크기(px) */
+  function naturalContentSize(base) {
+    const melodyH = PITCHES.reduce(
+      (sum, pitch) => sum + (isBlackKey(pitch) ? base.blackRow : base.row),
+      0,
+    );
+    let drumH = 0;
+    (song?.tracks || [])
+      .filter((t) => t.type === 'percussion')
+      .forEach((t) => {
+        const inst = INSTRUMENTS[t.instrument];
+        drumH += base.row * (inst?.drumUnits || 2);
+      });
+    const height = base.ruler + melodyH + drumH;
+
+    const cfg = getTimeSignatureConfig(song.timeSignature);
+    const measureCount = getMaxMeasures();
+    const width = base.key + measureCount * base.beat * cfg.beatCount + base.addCol;
+    return { width, height };
+  }
+
+  /**
+   * 사용 가능한 영역을 빈 공간 없이 채우도록, 가로·세로 동일 비율의 확대 배율을 계산.
+   * 두 비율 중 큰 값을 사용해 한쪽이 정확히 들어차고 다른 쪽은 스크롤되도록 한다(축소는 안 함).
+   */
+  function computeFillScale(container) {
+    if (!song || !container) return 1;
+    const availW = container.clientWidth;
+    const availH = container.clientHeight;
+    if (!availW || !availH) return 1;
+
+    const base = baseLayoutSizes();
+    const { width, height } = naturalContentSize(base);
+    if (!width || !height) return 1;
+
+    const ratio = Math.max(availW / width, availH / height);
+    return Math.min(MAX_FILL_SCALE, Math.max(MIN_FILL_SCALE, ratio));
   }
 
   updateLayoutSizes();
@@ -228,7 +288,7 @@
   function render() {
     const container = document.getElementById('tracks-container');
     if (!container) return;
-    updateLayoutSizes();
+    applyLayoutSizes(baseLayoutSizes(), computeFillScale(container));
     const scoreScrollPrev = document.getElementById('score-scroll');
     const savedScrollLeft = scoreScrollPrev?.scrollLeft ?? 0;
     const savedScrollTop = scoreScrollPrev?.scrollTop ?? 0;
@@ -298,6 +358,7 @@
 
     const addCol = document.createElement('div');
     addCol.className = 'add-col';
+    addCol.style.width = `${ADD_COL_WIDTH}px`;
     const addSpacer = document.createElement('div');
     addSpacer.className = 'ruler-spacer';
     addSpacer.style.height = `${RULER_HEIGHT}px`;
@@ -353,13 +414,7 @@
       solfege.className = 'key-solfege';
       solfege.textContent = getSolfege(pitch);
 
-      const octave = document.createElement('span');
-      octave.className = 'key-octave';
-      const { octave: oct } = window.WMF.parsePitch(pitch);
-      octave.textContent = String(oct);
-
       key.appendChild(solfege);
-      key.appendChild(octave);
     }
 
     return key;
@@ -629,6 +684,10 @@
           };
 
           if (ev.pointerType === 'mouse') {
+            if (toggleTimer) {
+              clearTimeout(toggleTimer);
+              toggleTimer = null;
+            }
             toggleTimer = setTimeout(doToggle, TOGGLE_DELAY_MOUSE);
           } else {
             doToggle();

@@ -94,6 +94,20 @@ function testSubdividedNoteOffKeepsGrid() {
   console.log('OK subdivided note off keeps grid');
 }
 
+function testSubdividedAllOffResetsToBeat() {
+  const song = createDefaultSong();
+  const m = song.tracks[0].measures[0];
+  m.lanes.C4[0].on = true;
+  splitLaneCell(m, 'C4', 0); // [1/2 on, 1/2 on, ...]
+  toggleLaneCellAt(m, 'C4', 1); // 둘째 반 off → [1/2 on, 1/2 off, ...] (박이 일부 차있어 유지)
+  assert(laneDurKeys(m, 'C4').slice(0, 2).join(',') === '1/2,1/2', 'partial beat keeps subdivision');
+  toggleLaneCellAt(m, 'C4', 0); // 첫째 반도 off → 박 전체가 비어 1박으로 복원
+  assert(durKey(m.lanes.C4[0].dur) === '1/1', 'all-off subdivided beat resets to 1/1');
+  assert(!m.lanes.C4[0].on, 'reset cell is off');
+  assert(m.lanes.C4.every((c) => durKey(c.dur) === '1/1'), 'whole measure back to 1/1 grid');
+  console.log('OK fully-emptied subdivided beat resets to 1/1');
+}
+
 function testEmptyCellMergeRejected() {
   const song = createDefaultSong();
   const m = song.tracks[0].measures[0];
@@ -185,29 +199,32 @@ function testV2Upgrade() {
 
 function testAddFourMeasures() {
   const song = createDefaultSong();
+  song.tracks.forEach((track) => {
+    assert(track.measures.length === MEASURES_PER_ADD, 'default starts with 4 measures');
+  });
   addMeasuresToAllTracks(song, MEASURES_PER_ADD);
   song.tracks.forEach((track) => {
-    assert(track.measures.length === 5, 'default 1 + 4 measures');
+    assert(track.measures.length === MEASURES_PER_ADD * 2, 'default 4 + 4 measures');
   });
   console.log('OK add 4 measures at once');
 }
 
 function testTrimTrailingEmptyMeasures() {
   const song = createDefaultSong();
-  addMeasuresToAllTracks(song, 7);
+  addMeasuresToAllTracks(song, 4);
   assert(song.tracks[0].measures.length === 8, '8 measures setup');
   assert(trimTrailingEmptyMeasures(song) === 4, 'remove 4 trailing empty');
   assert(song.tracks[0].measures.length === 4, '4 measures remain');
 
   const song2 = createDefaultSong();
-  addMeasuresToAllTracks(song2, 8);
+  addMeasuresToAllTracks(song2, 5);
   song2.tracks[0].measures[3].lanes.C4[0].on = true;
   assert(song2.tracks[0].measures.length === 9, '9 measures, note in M4');
   assert(trimTrailingEmptyMeasures(song2) === 4, 'remove only 4 of 5 trailing');
   assert(song2.tracks[0].measures.length === 5, '1 trailing empty remains');
 
   const song3 = createDefaultSong();
-  addMeasuresToAllTracks(song3, 7);
+  addMeasuresToAllTracks(song3, 4);
   song3.tracks[0].measures[0].lanes.C4[0].on = true;
   assert(song3.tracks[0].measures.length === 8, '8 measures with content in M1');
   assert(trimTrailingEmptyMeasures(song3) === 4, 'trim 4 empty after M1');
@@ -215,7 +232,6 @@ function testTrimTrailingEmptyMeasures() {
   assert(trimTrailingEmptyMeasures(song3) === 0, 'no more trim possible');
 
   const song4 = createDefaultSong();
-  addMeasuresToAllTracks(song4, 3);
   song4.tracks[1].measures[2].cells[0].notes.push('hit');
   assert(trimTrailingEmptyMeasures(song4) === 0, 'non-empty measure blocks trim');
   assert(song4.tracks[0].measures.length === 4, 'all measures kept');
@@ -240,6 +256,7 @@ try {
   testEmptyCellMergeRejected();
   testMergedNoteOffResetsGrid();
   testSubdividedNoteOffKeepsGrid();
+  testSubdividedAllOffResetsToBeat();
   testTwoBeatMerge();
   testAddFourMeasures();
   testTrimTrailingEmptyMeasures();
