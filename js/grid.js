@@ -418,12 +418,9 @@
     if (end <= start) return false;
 
     const beatCount = getBeatCount(song.timeSignature);
-    if (isDrum) {
-      mergeCells(measure, start, end, beatCount);
-    } else {
-      mergeLaneCells(measure, pitch, start, end, beatCount);
-    }
-    return true;
+    return isDrum
+      ? mergeCells(measure, start, end, beatCount)
+      : mergeLaneCells(measure, pitch, start, end, beatCount);
   }
 
   function clearMergeHighlight() {
@@ -442,6 +439,7 @@
 
     cellEl.addEventListener('pointerdown', (e) => {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
+      window.WMF.Audio?.unlockFromUserGesture?.();
       e.preventDefault();
 
       try {
@@ -586,6 +584,7 @@
       isDrum: false,
       measure,
       onToggle: () => {
+        window.WMF.Audio?.unlockFromUserGesture?.();
         toggleLaneCellAt(measure, pitch, cellIndex);
         if (cell.on) {
           window.WMF.Audio?.previewPitch?.(pitch);
@@ -643,6 +642,7 @@
       isDrum: true,
       measure,
       onToggle: () => {
+        window.WMF.Audio?.unlockFromUserGesture?.();
         togglePercussionHitAt(measure, cellIndex);
         if (cell.notes.includes('hit')) {
           window.WMF.Audio?.previewDrum?.(track.instrument);

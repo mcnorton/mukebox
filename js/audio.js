@@ -17,34 +17,81 @@
   let cellSchedule = [];
   let audioReady = false;
   let initPromise = null;
+  let unlockPromise = null;
   let loopEnabled = false;
   let lastSong = null;
   let onStateChange = null;
+
+  function isMobileBrowser() {
+    const ua = navigator.userAgent;
+    const isIOS = /iPad|iPhone|iPod/.test(ua)
+      || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isAndroid = /Android/i.test(ua);
+    const isMobileChrome = /CriOS|Chrome\/.*Mobile/i.test(ua);
+    const isCoarse = window.matchMedia('(pointer: coarse)').matches;
+    return isIOS || isAndroid || isMobileChrome || isCoarse;
+  }
+
+  function useLiteAudio() {
+    return isMobileBrowser();
+  }
 
   function notifyStateChange() {
     if (onStateChange) onStateChange(isPlaying);
   }
 
+  async function ensureUnlocked() {
+    await Tone.start();
+    const rawContext = Tone.getContext().rawContext;
+    if (rawContext?.state === 'suspended') {
+      await rawContext.resume();
+    }
+    if (Tone.context.state === 'suspended') {
+      await Tone.context.resume();
+    }
+  }
+
+  function unlockFromUserGesture() {
+    if (!unlockPromise) {
+      unlockPromise = ensureUnlocked().finally(() => {
+        unlockPromise = null;
+      });
+    }
+    return unlockPromise;
+  }
+
+  function bindMobileAudioResume() {
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && (audioReady || isPlaying)) {
+        unlockFromUserGesture();
+      }
+    });
+  }
+
+  bindMobileAudioResume();
+
   async function warmUpSynths() {
     if (!pianoSynth || !drumSynth || !snareSynth || !triangleSynth) return;
 
     const now = Tone.now();
-    pianoSynth.triggerAttackRelease('C4', 0.001, now);
-    drumSynth.triggerAttackRelease('C2', 0.001, now + 0.01);
-    snareSynth.triggerAttackRelease(0.001, now + 0.02);
-    triangleSynth.triggerAttackRelease('A6', 0.001, now + 0.03);
+    const warmDur = 0.05;
+    pianoSynth.triggerAttackRelease('C4', warmDur, now);
+    drumSynth.triggerAttackRelease('C2', warmDur, now + 0.01);
+    snareSynth.triggerAttackRelease(warmDur, now + 0.02);
+    triangleSynth.triggerAttackRelease('A6', warmDur, now + 0.03);
     await Tone.context.resume();
     await new Promise((resolve) => setTimeout(resolve, 80));
   }
 
   async function initAudio() {
+    await ensureUnlocked();
     if (audioReady) return true;
     if (initPromise) return initPromise;
 
     initPromise = (async () => {
-      await Tone.start();
+      const lite = useLiteAudio();
 
-      if (!reverb) {
+      if (!lite && !reverb) {
         reverb = new Tone.Reverb({ decay: 2.5, wet: 0.2 }).toDestination();
         await reverb.generate();
       }
@@ -59,7 +106,11 @@
           modulation: { type: 'square' },
           modulationEnvelope: { attack: 0.002, decay: 0.2, sustain: 0, release: 0.2 },
         });
-        pianoSynth.connect(reverb);
+        if (lite) {
+          pianoSynth.toDestination();
+        } else {
+          pianoSynth.connect(reverb);
+        }
         pianoSynth.volume.value = -8;
       }
 
@@ -78,7 +129,11 @@
           noise: { type: 'white' },
           envelope: { attack: 0.001, decay: 0.12, sustain: 0, release: 0.05 },
         });
-        snareSynth.connect(reverb);
+        if (lite) {
+          snareSynth.toDestination();
+        } else {
+          snareSynth.connect(reverb);
+        }
         snareSynth.volume.value = -6;
       }
 
@@ -91,7 +146,11 @@
           octaves: 1.5,
           envelope: { attack: 0.001, decay: 0.6, release: 0.2 },
         });
-        triangleSynth.connect(reverb);
+        if (lite) {
+          triangleSynth.toDestination();
+        } else {
+          triangleSynth.connect(reverb);
+        }
         triangleSynth.volume.value = -20;
       }
 
@@ -165,6 +224,7 @@
   }
 
   async function startPlayback(song) {
+    await ensureUnlocked();
     await initAudio();
 
     lastSong = song;
@@ -262,6 +322,7 @@
   async function previewPitch(pitch) {
     if (isPlaying) return;
     try {
+      await unlockFromUserGesture();
       await initAudio();
       if (pianoSynth) {
         pianoSynth.triggerAttackRelease(pitch, '8n', Tone.now());
@@ -274,6 +335,7 @@
   async function previewDrum(instrument) {
     if (isPlaying) return;
     try {
+      await unlockFromUserGesture();
       await initAudio();
       const now = Tone.now();
       if (instrument === 'snareDrum') {
@@ -293,6 +355,8 @@
     initAudio,
     preloadAudio,
     isAudioReady,
+    ensureUnlocked,
+    unlockFromUserGesture,
     playSong,
     stopPlayback,
     setTempo,

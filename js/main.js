@@ -138,6 +138,7 @@
 
   let audioPreloaded = false;
   function preloadAudioOnce() {
+    Audio.unlockFromUserGesture();
     if (audioPreloaded) return;
     audioPreloaded = true;
     Audio.preloadAudio().catch(() => {
@@ -148,7 +149,12 @@
   const appEl = document.querySelector('.app');
   if (appEl) {
     appEl.addEventListener('pointerdown', preloadAudioOnce, { once: true, passive: true });
+    appEl.addEventListener('touchstart', preloadAudioOnce, { once: true, passive: true });
   }
+
+  btnPlay?.addEventListener('pointerdown', () => {
+    Audio.unlockFromUserGesture();
+  }, { passive: true });
 
   btnMeter?.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -207,7 +213,12 @@
   });
 
   btnPlay?.addEventListener('click', async () => {
-    preloadAudioOnce();
+    Audio.unlockFromUserGesture();
+    try {
+      await Audio.preloadAudio();
+    } catch {
+      /* preload optional */
+    }
     if (Audio.getIsPlaying()) {
       Audio.stopPlayback();
       return;

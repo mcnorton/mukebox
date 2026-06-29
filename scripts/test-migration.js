@@ -91,9 +91,17 @@ function testSubdividedNoteOffKeepsGrid() {
   console.log('OK subdivided note off keeps grid');
 }
 
+function testEmptyCellMergeRejected() {
+  const song = createDefaultSong();
+  const m = song.tracks[0].measures[0];
+  assert(!mergeLaneCells(m, 'C4', 0, 1, 4), 'empty cell merge rejected');
+  console.log('OK empty cell merge rejected');
+}
+
 function testTwoBeatMerge() {
   const song = createDefaultSong();
   const m = song.tracks[0].measures[0];
+  m.lanes.C4[0].on = true;
   mergeLaneCells(m, 'C4', 0, 1, 4);
   assert(durKey(m.lanes.C4[0].dur) === '2/1', '2박 merge');
   setTimeSignature(song, 3, 4);
@@ -186,6 +194,7 @@ try {
   testDefaultV3();
   testSplitPreservesDur();
   testEmptyCellSplitRejected();
+  testEmptyCellMergeRejected();
   testMergedNoteOffResetsGrid();
   testSubdividedNoteOffKeepsGrid();
   testTwoBeatMerge();

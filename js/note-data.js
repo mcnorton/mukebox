@@ -364,6 +364,7 @@
 
     const cells = lane.slice(startIndex, endIndex + 1);
     if (cells.length < 2) return false;
+    if (!cells.some((c) => c.on)) return false;
 
     const maxBeats = beatCountLimit ?? getBeatCount({ num: 4, den: 4 });
     const totalDur = cells.reduce((acc, c) => durAdd(acc, c.dur), dur(0, 1));
@@ -393,6 +394,7 @@
   function mergeCells(measure, startIndex, endIndex, beatCountLimit) {
     const cells = measure.cells.slice(startIndex, endIndex + 1);
     if (cells.length < 2) return false;
+    if (!cells.some((c) => c.notes.includes('hit'))) return false;
 
     const maxBeats = beatCountLimit ?? getBeatCount({ num: 4, den: 4 });
     const totalDur = cells.reduce((acc, c) => durAdd(acc, c.dur), dur(0, 1));
