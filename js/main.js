@@ -5,12 +5,16 @@
 (function () {
   const {
     Grid, Audio, Storage, setTimeSignature, timeSignatureKey, normalizeTempo, TEMPO_PRESETS,
-    trimTrailingEmptyMeasures,
+    trimTrailingEmptyMeasures, getSolfege,
   } = window.WMF;
+  const I18n = window.WMF.I18n;
 
   let song = Storage.loadInitialSong();
   song.tempo = normalizeTempo(song.tempo);
 
+  const langControl = document.getElementById('lang-control');
+  const btnLang = document.getElementById('btn-lang');
+  const langPopover = document.getElementById('lang-popover');
   const meterControl = document.getElementById('meter-control');
   const btnMeter = document.getElementById('btn-meter');
   const meterPopover = document.getElementById('meter-popover');
@@ -26,9 +30,9 @@
   function syncMeterLabel() {
     if (!meterLabel || !song.timeSignature) return;
     const key = timeSignatureKey(song.timeSignature);
-    meterLabel.textContent = `Meter ${key}`;
+    meterLabel.textContent = `${I18n.t('meter')} ${key}`;
 
-    document.querySelectorAll('.meter-option').forEach((opt) => {
+    document.querySelectorAll('#meter-popover .meter-option').forEach((opt) => {
       const selected = opt.dataset.value === key;
       opt.classList.toggle('is-selected', selected);
       opt.setAttribute('aria-selected', selected ? 'true' : 'false');
@@ -43,10 +47,11 @@
 
   function updateTempoDisplay(preset, sliderIndex) {
     if (!preset) return;
-    if (tempoNameEl) tempoNameEl.textContent = preset.label;
+    const name = I18n.tempoName(preset.bpm);
+    if (tempoNameEl) tempoNameEl.textContent = name;
     if (tempoBpmEl) tempoBpmEl.textContent = String(preset.bpm);
     if (tempoSlider) {
-      tempoSlider.setAttribute('aria-valuetext', `${preset.label} ${preset.bpm}`);
+      tempoSlider.setAttribute('aria-valuetext', `${name} ${preset.bpm}`);
       const idx = sliderIndex ?? Number(tempoSlider.value);
       const max = Number(tempoSlider.max) || TEMPO_PRESETS.length - 1;
       const fill = max > 0 ? (idx / max) * 100 : 0;
@@ -59,6 +64,31 @@
     const idx = getTempoPresetIndex(song.tempo);
     tempoSlider.value = String(idx);
     updateTempoDisplay(TEMPO_PRESETS[idx], idx);
+  }
+
+  function refreshSolfege() {
+    document.querySelectorAll('.piano-key[data-pitch] .key-solfege').forEach((el) => {
+      const pitch = el.closest('.piano-key')?.dataset.pitch;
+      if (pitch) el.textContent = getSolfege(pitch);
+    });
+  }
+
+  function updateLangSelectedState() {
+    const lang = I18n.getLang();
+    document.querySelectorAll('.lang-option').forEach((opt) => {
+      const selected = opt.dataset.lang === lang;
+      opt.classList.toggle('is-selected', selected);
+      opt.setAttribute('aria-selected', selected ? 'true' : 'false');
+    });
+  }
+
+  function applyLanguage() {
+    I18n.applyStatic(document);
+    syncMeterLabel();
+    syncTempoSlider();
+    updatePlayButton();
+    refreshSolfege();
+    updateLangSelectedState();
   }
 
   function setTransportLocked(locked) {
@@ -78,8 +108,9 @@
 
     btnPlay.classList.toggle('playing', playing);
     playIcon.textContent = playing ? '■' : '▶';
-    btnPlay.title = playing ? '정지' : '재생';
-    btnPlay.setAttribute('aria-label', playing ? '정지' : '재생');
+    const labelKey = playing ? 'stop' : 'play';
+    btnPlay.title = I18n.t(labelKey);
+    btnPlay.setAttribute('aria-label', I18n.t(labelKey));
   }
 
   function positionMeterPopover() {
@@ -87,6 +118,26 @@
     const rect = btnMeter.getBoundingClientRect();
     meterPopover.style.left = `${rect.left + rect.width / 2}px`;
     meterPopover.style.top = `${rect.top - 10}px`;
+  }
+
+  function positionLangPopover() {
+    if (!langPopover || !btnLang) return;
+    const rect = btnLang.getBoundingClientRect();
+    const margin = 8;
+    const top = rect.bottom + 8;
+
+    langPopover.style.top = `${top}px`;
+
+    const width = langPopover.offsetWidth || langPopover.getBoundingClientRect().width;
+    let left = rect.left;
+    if (left + width > window.innerWidth - margin) {
+      left = window.innerWidth - margin - width;
+    }
+    left = Math.max(margin, left);
+    langPopover.style.left = `${left}px`;
+
+    const arrowLeft = rect.left + rect.width / 2 - left;
+    langPopover.style.setProperty('--lang-arrow-left', `${arrowLeft}px`);
   }
 
   function closeMeterPopover() {
@@ -98,6 +149,7 @@
 
   function openMeterPopover() {
     if (!meterPopover || !btnMeter || Audio.getIsPlaying()) return;
+    closeLangPopover();
     positionMeterPopover();
     meterPopover.classList.remove('hidden');
     btnMeter.setAttribute('aria-expanded', 'true');
@@ -110,6 +162,31 @@
       openMeterPopover();
     } else {
       closeMeterPopover();
+    }
+  }
+
+  function closeLangPopover() {
+    if (!langPopover || !btnLang) return;
+    langPopover.classList.add('hidden');
+    btnLang.setAttribute('aria-expanded', 'false');
+    langControl?.classList.remove('is-open');
+  }
+
+  function openLangPopover() {
+    if (!langPopover || !btnLang) return;
+    closeMeterPopover();
+    langPopover.classList.remove('hidden');
+    positionLangPopover();
+    btnLang.setAttribute('aria-expanded', 'true');
+    langControl?.classList.add('is-open');
+  }
+
+  function toggleLangPopover() {
+    if (!langPopover) return;
+    if (langPopover.classList.contains('hidden')) {
+      openLangPopover();
+    } else {
+      closeLangPopover();
     }
   }
 
@@ -133,11 +210,13 @@
     updatePlayButton();
   };
 
+  I18n.onChange(() => {
+    applyLanguage();
+  });
+
   Grid.initGrid(song, onSongChange);
 
-  syncMeterLabel();
-  syncTempoSlider();
-  updatePlayButton();
+  applyLanguage();
 
   let audioPreloaded = false;
   function preloadAudioOnce() {
@@ -159,12 +238,25 @@
     Audio.unlockFromUserGesture();
   }, { passive: true });
 
+  btnLang?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleLangPopover();
+  });
+
+  document.querySelectorAll('.lang-option').forEach((opt) => {
+    opt.addEventListener('click', (e) => {
+      e.stopPropagation();
+      I18n.setLang(opt.dataset.lang);
+      closeLangPopover();
+    });
+  });
+
   btnMeter?.addEventListener('click', (e) => {
     e.stopPropagation();
     toggleMeterPopover();
   });
 
-  document.querySelectorAll('.meter-option').forEach((opt) => {
+  document.querySelectorAll('#meter-popover .meter-option').forEach((opt) => {
     opt.addEventListener('click', (e) => {
       e.stopPropagation();
       if (Audio.getIsPlaying()) return;
@@ -174,21 +266,27 @@
       if (setTimeSignature(song, num, den)) {
         Grid.setSong(song);
         onSongChange(song);
-        showToast(`박자를 ${num}/${den}(으)로 변경했습니다 (음표 유지)`);
+        showToast(I18n.t('toastMeterChanged', num, den));
       }
       closeMeterPopover();
     });
   });
 
   document.addEventListener('click', (e) => {
-    if (!meterPopover || meterPopover.classList.contains('hidden')) return;
-    if (e.target.closest('#meter-control')) return;
-    closeMeterPopover();
+    if (meterPopover && !meterPopover.classList.contains('hidden')) {
+      if (!e.target.closest('#meter-control')) closeMeterPopover();
+    }
+    if (langPopover && !langPopover.classList.contains('hidden')) {
+      if (!e.target.closest('#lang-control')) closeLangPopover();
+    }
   });
 
   window.addEventListener('resize', () => {
     if (meterPopover && !meterPopover.classList.contains('hidden')) {
       positionMeterPopover();
+    }
+    if (langPopover && !langPopover.classList.contains('hidden')) {
+      positionLangPopover();
     }
   });
 
@@ -244,7 +342,7 @@
   document.getElementById('btn-save')?.addEventListener('click', () => {
     song = Grid.getSong();
     Storage.downloadJson(song);
-    showToast('JSON 파일을 저장했습니다');
+    showToast(I18n.t('toastSaved'));
   });
 
   document.getElementById('file-upload')?.addEventListener('change', async (e) => {
@@ -255,9 +353,9 @@
       song.tempo = normalizeTempo(song.tempo);
       Grid.setSong(song);
       onSongChange(song);
-      showToast('악보를 불러왔습니다');
+      showToast(I18n.t('toastLoaded'));
     } catch {
-      showToast('파일을 읽을 수 없습니다');
+      showToast(I18n.t('toastReadError'));
     }
     e.target.value = '';
   });

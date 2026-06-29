@@ -9,14 +9,21 @@
 <body>
   <div class="app">
     <header class="app-top">
+      <div class="app-top-lang" id="lang-control">
+        <button type="button" id="btn-lang" class="btn-icon" aria-haspopup="listbox" aria-expanded="false" data-i18n-aria="language">🌐</button>
+        <div id="lang-popover" class="meter-popover lang-popover hidden" role="listbox" data-i18n-aria="language">
+          <button type="button" class="meter-option lang-option is-default" data-lang="ko" role="option">한글</button>
+          <button type="button" class="meter-option lang-option" data-lang="en" role="option">English</button>
+        </div>
+      </div>
       <h1 class="app-top-title">MukeBox</h1>
       <div class="app-top-actions">
-        <button type="button" id="btn-save" class="btn-icon" title="저장" aria-label="저장">💾</button>
-        <label class="btn-icon btn-file" title="불러오기" aria-label="불러오기">
+        <button type="button" id="btn-save" class="btn-icon" data-i18n-title="save" data-i18n-aria="save">💾</button>
+        <label class="btn-icon btn-file" data-i18n-title="load" data-i18n-aria="load">
           📂
           <input type="file" id="file-upload" accept=".json,application/json" hidden>
         </label>
-        <button type="button" id="btn-help" class="btn-icon" title="사용 방법" aria-label="사용 방법">?</button>
+        <button type="button" id="btn-help" class="btn-icon" data-i18n-title="help" data-i18n-aria="help">?</button>
       </div>
     </header>
 
@@ -28,17 +35,17 @@
       <div class="transport-group transport-center">
         <div class="transport-settings">
           <div class="meter-control" id="meter-control">
-            <button type="button" id="btn-meter" class="btn-meter" aria-haspopup="listbox" aria-expanded="false" aria-label="박자 선택">
+            <button type="button" id="btn-meter" class="btn-meter" aria-haspopup="listbox" aria-expanded="false" data-i18n-aria="selectMeter">
               <span id="meter-label" class="meter-label">Meter 4/4</span>
             </button>
-            <div id="meter-popover" class="meter-popover hidden" role="listbox" aria-label="박자">
+            <div id="meter-popover" class="meter-popover hidden" role="listbox" data-i18n-aria="meter">
               <button type="button" class="meter-option" data-value="2/4" role="option">2/4</button>
               <button type="button" class="meter-option" data-value="3/4" role="option">3/4</button>
               <button type="button" class="meter-option is-default" data-value="4/4" role="option">(4/4)</button>
               <button type="button" class="meter-option" data-value="6/8" role="option">6/8</button>
             </div>
           </div>
-          <div id="tempo-slider-control" class="tempo-slider-control" aria-label="템포">
+          <div id="tempo-slider-control" class="tempo-slider-control" data-i18n-aria="tempo">
             <div class="tempo-display" aria-live="polite">
               <span class="tempo-name">모데라토</span>
               <span class="tempo-bpm">120</span>
@@ -51,12 +58,12 @@
               max="4"
               step="1"
               value="2"
-              aria-label="템포"
+              data-i18n-aria="tempo"
               aria-valuetext="모데라토 120"
             >
           </div>
-          <button type="button" id="btn-loop" class="loop-control" role="switch" title="반복 연주" aria-label="반복 연주" aria-checked="false">
-            <span class="loop-label">Repeat</span>
+          <button type="button" id="btn-loop" class="loop-control" role="switch" data-i18n-title="repeatLabel" data-i18n-aria="repeatLabel" aria-checked="false">
+            <span class="loop-label" data-i18n="repeatLabel">Repeat</span>
             <span class="loop-switch" aria-hidden="true">
               <span class="loop-switch-thumb"></span>
             </span>
@@ -66,7 +73,7 @@
     </footer>
 
     <div class="score-play-fab">
-      <button type="button" id="btn-play" class="btn-play" title="재생" aria-label="재생">
+      <button type="button" id="btn-play" class="btn-play" data-i18n-title="play" data-i18n-aria="play">
         <span class="play-icon" aria-hidden="true">▶</span>
       </button>
     </div>
@@ -75,17 +82,17 @@
   <div id="help-modal" class="modal hidden" role="dialog" aria-labelledby="help-modal-title">
     <div class="modal-backdrop"></div>
     <div class="modal-content">
-      <h3 id="help-modal-title">사용 방법</h3>
+      <h3 id="help-modal-title" data-i18n="helpTitle">사용 방법</h3>
       <ul class="help-list">
-        <li><strong>멜로디</strong> — 칸을 탭해 음을 켜고 끕니다. (C3~C5, 반음 포함)</li>
-        <li><strong>큰북</strong> — 아래 행의 칸을 탭해 타격 on/off.</li>
-        <li><strong>분할</strong> — 칸을 길게 누르기 (또는 더블클릭) → 4분→8분→16분음표.</li>
-        <li><strong>병합</strong> — 같은 음의 인접 칸을 드래그하면 즉시 합쳐집니다.</li>
-        <li><strong>스크롤</strong> — 눈금·건반·빈 영역을 드래그해 상하좌우로 이동합니다.</li>
-        <li><strong>마디</strong> — 오른쪽 <strong>+</strong> 버튼으로 마디 4개 추가. 재생 시 끝의 빈 마디는 4개 단위로 정리됩니다.</li>
+        <li data-i18n-html="helpMelody"><strong>멜로디</strong> — 칸을 탭해 음을 켜고 끕니다. (C3~C5, 반음 포함)</li>
+        <li data-i18n-html="helpBassDrum"><strong>큰북</strong> — 아래 행의 칸을 탭해 타격 on/off.</li>
+        <li data-i18n-html="helpSplit"><strong>분할</strong> — 칸을 길게 누르기 (또는 더블클릭) → 4분→8분→16분음표.</li>
+        <li data-i18n-html="helpMerge"><strong>병합</strong> — 같은 음의 인접 칸을 드래그하면 즉시 합쳐집니다.</li>
+        <li data-i18n-html="helpScroll"><strong>스크롤</strong> — 눈금·건반·빈 영역을 드래그해 상하좌우로 이동합니다.</li>
+        <li data-i18n-html="helpMeasures"><strong>마디</strong> — 오른쪽 <strong>+</strong> 버튼으로 마디 4개 추가. 재생 시 끝의 빈 마디는 4개 단위로 정리됩니다.</li>
       </ul>
       <div class="modal-actions">
-        <button type="button" id="help-close" class="btn btn-primary">닫기</button>
+        <button type="button" id="help-close" class="btn btn-primary" data-i18n="close">닫기</button>
       </div>
     </div>
   </div>
@@ -93,6 +100,7 @@
   <div id="toast" class="toast hidden" role="status"></div>
 
   <script src="js/model.js"></script>
+  <script src="js/i18n.js"></script>
   <script src="js/note-data.js"></script>
   <script src="js/schedule.js"></script>
   <script src="js/storage.js"></script>

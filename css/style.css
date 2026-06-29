@@ -98,6 +98,18 @@ body {
   z-index: 1;
 }
 
+.app-top-lang {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+  position: relative;
+  z-index: 1;
+}
+
+.app-top-lang.is-open {
+  z-index: 100;
+}
+
 .btn-icon {
   width: 32px;
   height: 32px;
@@ -692,6 +704,20 @@ body {
 
 .meter-popover.hidden {
   display: none;
+}
+
+.lang-popover {
+  transform: none;
+}
+
+.lang-popover::after {
+  bottom: auto;
+  top: -7px;
+  left: var(--lang-arrow-left, 50%);
+  transform: translateX(-50%);
+  border-top-color: transparent;
+  border-bottom-color: var(--surface);
+  filter: drop-shadow(0 -2px 1px rgba(0, 0, 0, 0.06));
 }
 
 .meter-option {

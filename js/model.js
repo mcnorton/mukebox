@@ -49,7 +49,10 @@ function isBlackKey(pitch) {
 }
 
 function getSolfege(pitch) {
-  return SOLFEGE[parsePitch(pitch).note] || parsePitch(pitch).note;
+  const note = parsePitch(pitch).note;
+  const lang = typeof window !== 'undefined' && window.WMF?.I18n?.getLang?.();
+  if (lang === 'en') return note;
+  return SOLFEGE[note] || note;
 }
 
 const INSTRUMENTS = {
