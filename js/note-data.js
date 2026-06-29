@@ -13,6 +13,7 @@
   } = window.WMF;
 
   const SONG_VERSION = 3;
+  const MEASURES_PER_ADD = 4;
 
   const TEMPO_PRESETS = [
     { bpm: 60, label: '아다지오' },
@@ -176,8 +177,57 @@
     track.measures.push(createDefaultMeasure(track.type, ts));
   }
 
+  function addMeasuresToAllTracks(song, count = MEASURES_PER_ADD) {
+    const n = Math.max(1, count);
+    for (let i = 0; i < n; i += 1) {
+      song.tracks.forEach((track) => addMeasure(track, song.timeSignature));
+    }
+  }
+
   function addMeasureToAllTracks(song) {
-    song.tracks.forEach((track) => addMeasure(track, song.timeSignature));
+    addMeasuresToAllTracks(song, 1);
+  }
+
+  function isTrackMeasureEmpty(measure, trackType) {
+    if (!measure) return true;
+    if (trackType === 'melodic') {
+      return !Object.values(measure.lanes || {}).some(
+        (lane) => lane.some((cell) => cell.on),
+      );
+    }
+    return !(measure.cells || []).some((cell) => cell.notes.includes('hit'));
+  }
+
+  function isMeasureIndexEmpty(song, index) {
+    return song.tracks.every((track) => isTrackMeasureEmpty(track.measures[index], track.type));
+  }
+
+  function countTrailingEmptyMeasures(song) {
+    const measureCount = Math.max(...song.tracks.map((t) => t.measures.length), 1);
+    let trailing = 0;
+    for (let i = measureCount - 1; i >= 0; i -= 1) {
+      if (!isMeasureIndexEmpty(song, i)) break;
+      trailing += 1;
+    }
+    return trailing;
+  }
+
+  /** 끝의 연속 빈 마디를 MEASURES_PER_ADD 단위로 제거. 제거된 마디 수 반환. */
+  function trimTrailingEmptyMeasures(song) {
+    let removed = 0;
+    let measureCount = Math.max(...song.tracks.map((t) => t.measures.length), 1);
+
+    while (measureCount > MEASURES_PER_ADD) {
+      const trailing = countTrailingEmptyMeasures(song);
+      if (trailing < MEASURES_PER_ADD) break;
+      song.tracks.forEach((track) => {
+        track.measures.splice(-MEASURES_PER_ADD, MEASURES_PER_ADD);
+      });
+      removed += MEASURES_PER_ADD;
+      measureCount -= MEASURES_PER_ADD;
+    }
+
+    return removed;
   }
 
   function cloneMelodyCell(cell) {
@@ -525,6 +575,7 @@
   window.WMF = window.WMF || {};
   Object.assign(window.WMF, {
     SONG_VERSION,
+    MEASURES_PER_ADD,
     TEMPO_PRESETS,
     DEFAULT_TEMPO,
     normalizeTempo,
@@ -546,6 +597,10 @@
     createDefaultSong,
     addMeasure,
     addMeasureToAllTracks,
+    addMeasuresToAllTracks,
+    isTrackMeasureEmpty,
+    isMeasureIndexEmpty,
+    trimTrailingEmptyMeasures,
     setTimeSignature,
     toggleLaneCellAt,
     splitLaneCell,

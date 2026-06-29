@@ -7,7 +7,7 @@
   const {
     PITCHES,
     INSTRUMENTS,
-    addMeasureToAllTracks,
+    addMeasuresToAllTracks,
     isBlackKey,
     getSolfege,
     getTimeSignatureConfig,
@@ -92,27 +92,9 @@
     const coarse = isCoarsePointer();
     BEAT_WIDTH = coarse ? 44 : 48;
     KEY_WIDTH = coarse ? 60 : 64;
-
-    const wrap = document.querySelector('.sequencer-wrap');
-    const availableH = wrap?.clientHeight
-      || window.innerHeight - (document.querySelector('.app-top')?.offsetHeight || 44)
-        - (document.querySelector('.transport-bar')?.offsetHeight || 64);
-
     RULER_HEIGHT = coarse ? 30 : 28;
-
-    const whiteCount = PITCHES.filter((p) => !isBlackKey(p)).length;
-    const blackCount = PITCHES.length - whiteCount;
-    const blackWeight = coarse ? 28 / 38 : 16 / 22;
-    const percTracks = song?.tracks.filter((t) => t.type === 'percussion') || [];
-    const drumRowUnits = percTracks.length
-      ? percTracks.reduce((sum, t) => sum + (INSTRUMENTS[t.instrument]?.drumUnits || 2), 0)
-      : 4;
-    const totalUnits = whiteCount + blackCount * blackWeight + drumRowUnits;
-    const rowArea = Math.max(0, availableH - RULER_HEIGHT);
-    const unitH = totalUnits > 0 ? rowArea / totalUnits : (coarse ? 38 : 22);
-
-    ROW_HEIGHT = Math.max(coarse ? 16 : 14, Math.floor(unitH));
-    BLACK_ROW_HEIGHT = Math.max(coarse ? 12 : 10, Math.floor(unitH * blackWeight));
+    ROW_HEIGHT = coarse ? 16 : 22;
+    BLACK_ROW_HEIGHT = coarse ? 12 : 16;
   }
 
   updateLayoutSizes();
@@ -147,6 +129,69 @@
 
   function notifyChange() {
     if (onChange) onChange(song);
+  }
+
+  function getScoreScrollEl() {
+    return document.getElementById('score-scroll');
+  }
+
+  function isMergeDragValid(clientX, clientY, pitch, measureIndex, isDrum) {
+    const target = document.elementFromPoint(clientX, clientY);
+    const targetCell = target?.closest('.lane-cell');
+    if (!targetCell) return false;
+    const targetSeg = targetCell.closest('.lane-measure-seg');
+    const targetMeasureIdx = parseInt(targetSeg?.dataset.measureIndex, 10);
+    if (Number.isNaN(targetMeasureIdx) || targetMeasureIdx !== measureIndex) return false;
+    if (isDrum) {
+      if (!targetCell.classList.contains('drum-lane-cell')) return false;
+    } else if (targetCell.dataset.pitch !== pitch) {
+      return false;
+    }
+    return true;
+  }
+
+  function applyScorePan(scrollEl, startX, startY, clientX, clientY, originScrollLeft, originScrollTop) {
+    scrollEl.scrollLeft = originScrollLeft - (clientX - startX);
+    scrollEl.scrollTop = originScrollTop - (clientY - startY);
+  }
+
+  function initScorePan(scrollEl) {
+    scrollEl.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('.lane-cell')) return;
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+
+      const pan = {
+        pointerId: e.pointerId,
+        startX: e.clientX,
+        startY: e.clientY,
+        scrollLeft: scrollEl.scrollLeft,
+        scrollTop: scrollEl.scrollTop,
+      };
+
+      const onMove = (ev) => {
+        if (ev.pointerId !== pan.pointerId) return;
+        applyScorePan(scrollEl, pan.startX, pan.startY, ev.clientX, ev.clientY, pan.scrollLeft, pan.scrollTop);
+      };
+
+      const onUp = (ev) => {
+        if (ev.pointerId !== pan.pointerId) return;
+        scrollEl.removeEventListener('pointermove', onMove);
+        scrollEl.removeEventListener('pointerup', onUp);
+        scrollEl.removeEventListener('pointercancel', onUp);
+      };
+
+      scrollEl.addEventListener('pointermove', onMove);
+      scrollEl.addEventListener('pointerup', onUp);
+      scrollEl.addEventListener('pointercancel', onUp);
+    });
+  }
+
+  let scorePanBound = false;
+
+  function bindScorePanOnce(scrollEl) {
+    if (!scrollEl || scorePanBound) return;
+    initScorePan(scrollEl);
+    scorePanBound = true;
   }
 
   function getMaxMeasures() {
@@ -184,7 +229,10 @@
     const container = document.getElementById('tracks-container');
     if (!container) return;
     updateLayoutSizes();
-    const savedScrollLeft = document.getElementById('timeline-scroll')?.scrollLeft ?? 0;
+    const scoreScrollPrev = document.getElementById('score-scroll');
+    const savedScrollLeft = scoreScrollPrev?.scrollLeft ?? 0;
+    const savedScrollTop = scoreScrollPrev?.scrollTop ?? 0;
+    scorePanBound = false;
     container.innerHTML = '';
     container.dataset.timeSig = timeSignatureKey(song.timeSignature);
 
@@ -258,10 +306,11 @@
     const addBtn = document.createElement('button');
     addBtn.type = 'button';
     addBtn.className = 'btn-add-measure';
-    addBtn.title = '마디 추가';
+    addBtn.title = '마디 4개 추가';
+    addBtn.setAttribute('aria-label', '마디 4개 추가');
     addBtn.textContent = '+';
     addBtn.addEventListener('click', () => {
-      addMeasureToAllTracks(song);
+      addMeasuresToAllTracks(song);
       notifyChange();
       render();
     });
@@ -270,9 +319,17 @@
     inner.appendChild(labelCol);
     inner.appendChild(scrollWrap);
     inner.appendChild(addCol);
-    container.appendChild(inner);
 
-    scrollWrap.scrollLeft = savedScrollLeft;
+    const scoreScroll = document.createElement('div');
+    scoreScroll.className = 'score-scroll';
+    scoreScroll.id = 'score-scroll';
+    scoreScroll.appendChild(inner);
+    container.appendChild(scoreScroll);
+
+    scoreScroll.scrollLeft = savedScrollLeft;
+    scoreScroll.scrollTop = savedScrollTop;
+
+    bindScorePanOnce(scoreScroll);
 
     updatePlayingHighlight();
   }
@@ -455,6 +512,9 @@
         startY: e.clientY,
         moved: false,
         splitFired: false,
+        panMode: false,
+        panScrollLeft: 0,
+        panScrollTop: 0,
         longPressTimer: null,
       };
 
@@ -485,6 +545,36 @@
         }
 
         if (gesture.moved) {
+          if (!gesture.panMode) {
+            const mergeValid = isMergeDragValid(ev.clientX, ev.clientY, pitch, measureIndex, isDrum);
+            if (Math.abs(dy) > Math.abs(dx) || !mergeValid) {
+              gesture.panMode = true;
+              clearMergeHighlight();
+              mergeSelection = null;
+              const scrollEl = getScoreScrollEl();
+              if (scrollEl) {
+                gesture.panScrollLeft = scrollEl.scrollLeft;
+                gesture.panScrollTop = scrollEl.scrollTop;
+              }
+            }
+          }
+
+          if (gesture.panMode) {
+            const scrollEl = getScoreScrollEl();
+            if (scrollEl) {
+              applyScorePan(
+                scrollEl,
+                gesture.startX,
+                gesture.startY,
+                ev.clientX,
+                ev.clientY,
+                gesture.panScrollLeft,
+                gesture.panScrollTop,
+              );
+            }
+            return;
+          }
+
           updateMergeFromPoint(ev.clientX, ev.clientY, pitch, measureIndex, isDrum);
         }
       };
@@ -509,6 +599,11 @@
         cellEl.removeEventListener('pointercancel', finishGesture);
 
         if (gesture.splitFired) {
+          mergeSelection = null;
+          return;
+        }
+
+        if (gesture.panMode) {
           mergeSelection = null;
           return;
         }

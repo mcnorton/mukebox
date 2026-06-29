@@ -3,7 +3,10 @@
  */
 
 (function () {
-  const { Grid, Audio, Storage, setTimeSignature, timeSignatureKey, normalizeTempo, TEMPO_PRESETS } = window.WMF;
+  const {
+    Grid, Audio, Storage, setTimeSignature, timeSignatureKey, normalizeTempo, TEMPO_PRESETS,
+    trimTrailingEmptyMeasures,
+  } = window.WMF;
 
   let song = Storage.loadInitialSong();
   song.tempo = normalizeTempo(song.tempo);
@@ -224,13 +227,17 @@
       return;
     }
     song = Grid.getSong();
+    if (trimTrailingEmptyMeasures(song) > 0) {
+      Grid.setSong(song);
+      onSongChange(song);
+    }
     await Audio.playSong(song);
   });
 
   btnLoop?.addEventListener('click', () => {
     const next = !Audio.getLoopEnabled();
     Audio.setLoopEnabled(next);
-    btnLoop.setAttribute('aria-pressed', next ? 'true' : 'false');
+    btnLoop.setAttribute('aria-checked', next ? 'true' : 'false');
     btnLoop.classList.toggle('active', next);
   });
 

@@ -26,49 +26,50 @@
 
     <footer class="transport-bar">
       <div class="transport-group transport-center">
-        <div class="transport-zone transport-zone-settings">
-          <div class="transport-settings">
-            <div class="meter-control" id="meter-control">
-              <button type="button" id="btn-meter" class="btn-meter" aria-haspopup="listbox" aria-expanded="false" aria-label="박자 선택">
-                <span id="meter-label" class="meter-label">Meter 4/4</span>
-              </button>
-              <div id="meter-popover" class="meter-popover hidden" role="listbox" aria-label="박자">
-                <button type="button" class="meter-option" data-value="2/4" role="option">2/4</button>
-                <button type="button" class="meter-option" data-value="3/4" role="option">3/4</button>
-                <button type="button" class="meter-option is-default" data-value="4/4" role="option">(4/4)</button>
-                <button type="button" class="meter-option" data-value="6/8" role="option">6/8</button>
-              </div>
-            </div>
-            <div id="tempo-slider-control" class="tempo-slider-control" aria-label="템포">
-              <div class="tempo-display" aria-live="polite">
-                <span class="tempo-name">모데라토</span>
-                <span class="tempo-bpm">120</span>
-              </div>
-              <input
-                type="range"
-                id="tempo-slider"
-                class="tempo-slider"
-                min="0"
-                max="4"
-                step="1"
-                value="2"
-                aria-label="템포"
-                aria-valuetext="모데라토 120"
-              >
-            </div>
-          </div>
-        </div>
-        <div class="transport-zone transport-zone-playback">
-          <div class="transport-playback">
-            <button type="button" id="btn-play" class="btn-play" title="재생" aria-label="재생">
-              <span class="play-icon" aria-hidden="true">▶</span>
+        <div class="transport-settings">
+          <div class="meter-control" id="meter-control">
+            <button type="button" id="btn-meter" class="btn-meter" aria-haspopup="listbox" aria-expanded="false" aria-label="박자 선택">
+              <span id="meter-label" class="meter-label">Meter 4/4</span>
             </button>
-            <button type="button" id="btn-loop" class="btn-loop" title="반복 연주" aria-label="반복 연주" aria-pressed="false">↻</button>
+            <div id="meter-popover" class="meter-popover hidden" role="listbox" aria-label="박자">
+              <button type="button" class="meter-option" data-value="2/4" role="option">2/4</button>
+              <button type="button" class="meter-option" data-value="3/4" role="option">3/4</button>
+              <button type="button" class="meter-option is-default" data-value="4/4" role="option">(4/4)</button>
+              <button type="button" class="meter-option" data-value="6/8" role="option">6/8</button>
+            </div>
           </div>
+          <div id="tempo-slider-control" class="tempo-slider-control" aria-label="템포">
+            <div class="tempo-display" aria-live="polite">
+              <span class="tempo-name">모데라토</span>
+              <span class="tempo-bpm">120</span>
+            </div>
+            <input
+              type="range"
+              id="tempo-slider"
+              class="tempo-slider"
+              min="0"
+              max="4"
+              step="1"
+              value="2"
+              aria-label="템포"
+              aria-valuetext="모데라토 120"
+            >
+          </div>
+          <button type="button" id="btn-loop" class="loop-control" role="switch" title="반복 연주" aria-label="반복 연주" aria-checked="false">
+            <span class="loop-label">Repeat</span>
+            <span class="loop-switch" aria-hidden="true">
+              <span class="loop-switch-thumb"></span>
+            </span>
+          </button>
         </div>
-        <div class="transport-zone transport-zone-instruments" aria-hidden="true"></div>
       </div>
     </footer>
+
+    <div class="score-play-fab">
+      <button type="button" id="btn-play" class="btn-play" title="재생" aria-label="재생">
+        <span class="play-icon" aria-hidden="true">▶</span>
+      </button>
+    </div>
   </div>
 
   <div id="help-modal" class="modal hidden" role="dialog" aria-labelledby="help-modal-title">
@@ -80,8 +81,8 @@
         <li><strong>큰북</strong> — 아래 행의 칸을 탭해 타격 on/off.</li>
         <li><strong>분할</strong> — 칸을 길게 누르기 (또는 더블클릭) → 4분→8분→16분음표.</li>
         <li><strong>병합</strong> — 같은 음의 인접 칸을 드래그하면 즉시 합쳐집니다.</li>
-        <li><strong>스크롤</strong> — 눈금자나 빈 영역을 좌우로 스와이프해 마디를 이동합니다.</li>
-        <li><strong>마디</strong> — 오른쪽 <strong>+</strong> 버튼으로 마디 추가.</li>
+        <li><strong>스크롤</strong> — 눈금·건반·빈 영역을 드래그해 상하좌우로 이동합니다.</li>
+        <li><strong>마디</strong> — 오른쪽 <strong>+</strong> 버튼으로 마디 4개 추가. 재생 시 끝의 빈 마디는 4개 단위로 정리됩니다.</li>
       </ul>
       <div class="modal-actions">
         <button type="button" id="help-close" class="btn btn-primary">닫기</button>

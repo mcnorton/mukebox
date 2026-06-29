@@ -29,6 +29,9 @@ const {
   getBeatCount,
   splitLaneCell,
   mergeLaneCells,
+  addMeasuresToAllTracks,
+  MEASURES_PER_ADD,
+  trimTrailingEmptyMeasures,
   toggleLaneCellAt,
   deserializeSong,
 } = WMF;
@@ -180,6 +183,46 @@ function testV2Upgrade() {
   console.log('OK v2 → v3 upgrade');
 }
 
+function testAddFourMeasures() {
+  const song = createDefaultSong();
+  addMeasuresToAllTracks(song, MEASURES_PER_ADD);
+  song.tracks.forEach((track) => {
+    assert(track.measures.length === 5, 'default 1 + 4 measures');
+  });
+  console.log('OK add 4 measures at once');
+}
+
+function testTrimTrailingEmptyMeasures() {
+  const song = createDefaultSong();
+  addMeasuresToAllTracks(song, 7);
+  assert(song.tracks[0].measures.length === 8, '8 measures setup');
+  assert(trimTrailingEmptyMeasures(song) === 4, 'remove 4 trailing empty');
+  assert(song.tracks[0].measures.length === 4, '4 measures remain');
+
+  const song2 = createDefaultSong();
+  addMeasuresToAllTracks(song2, 8);
+  song2.tracks[0].measures[3].lanes.C4[0].on = true;
+  assert(song2.tracks[0].measures.length === 9, '9 measures, note in M4');
+  assert(trimTrailingEmptyMeasures(song2) === 4, 'remove only 4 of 5 trailing');
+  assert(song2.tracks[0].measures.length === 5, '1 trailing empty remains');
+
+  const song3 = createDefaultSong();
+  addMeasuresToAllTracks(song3, 7);
+  song3.tracks[0].measures[0].lanes.C4[0].on = true;
+  assert(song3.tracks[0].measures.length === 8, '8 measures with content in M1');
+  assert(trimTrailingEmptyMeasures(song3) === 4, 'trim 4 empty after M1');
+  assert(song3.tracks[0].measures.length === 4, '4 measures after trim');
+  assert(trimTrailingEmptyMeasures(song3) === 0, 'no more trim possible');
+
+  const song4 = createDefaultSong();
+  addMeasuresToAllTracks(song4, 3);
+  song4.tracks[1].measures[2].cells[0].notes.push('hit');
+  assert(trimTrailingEmptyMeasures(song4) === 0, 'non-empty measure blocks trim');
+  assert(song4.tracks[0].measures.length === 4, 'all measures kept');
+
+  console.log('OK trim trailing empty measures');
+}
+
 function testSchedule() {
   const song = createDefaultSong();
   song.tracks[0].measures[0].lanes.C4[0].on = true;
@@ -198,6 +241,8 @@ try {
   testMergedNoteOffResetsGrid();
   testSubdividedNoteOffKeepsGrid();
   testTwoBeatMerge();
+  testAddFourMeasures();
+  testTrimTrailingEmptyMeasures();
   test34TwoMeasuresTo44();
   testV2Upgrade();
   testSchedule();
