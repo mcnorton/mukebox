@@ -1,5 +1,5 @@
 /**
- * 재생 스케줄 — note-data(dur)를 절대 초 이벤트로 변환 (Tone.js는 audio.js가 담당)
+ * 재생 스케줄 — note-data(dur)를 절대 초 이벤트로 변환 (재생은 audio.js가 담당)
  */
 
 (function () {

@@ -1,17 +1,19 @@
 /**
- * MukeBox — Tone.js playback
+ * MukeBox — Web Audio API playback
  */
 
 (function () {
-  let pianoSynth = null;
-  let drumSynth = null;
-  let snareSynth = null;
-  let triangleSynth = null;
-  let reverb = null;
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+
+  let ctx = null;
+  let masterGain = null;
+  let outputNode = null;
+
   let isPlaying = false;
   let progress = 0;
   let progressRaf = null;
-  let scheduledEvents = [];
+  let playbackStartTime = 0;
+  let scheduledNodes = [];
   let totalDuration = 0;
   let activeCells = [];
   let cellSchedule = [];
@@ -21,6 +23,21 @@
   let loopEnabled = false;
   let lastSong = null;
   let onStateChange = null;
+  let playbackToken = 0;
+
+  const NOTE_MAP = {
+    C: 0, 'C#': 1, D: 2, 'D#': 3, E: 4, F: 5, 'F#': 6,
+    G: 7, 'G#': 8, A: 9, 'A#': 10, B: 11,
+  };
+
+  function pitchToFreq(pitch) {
+    const match = pitch.match(/^([A-G]#?)(\d)$/);
+    if (!match) return 440;
+    const note = match[1];
+    const octave = parseInt(match[2], 10);
+    const midi = NOTE_MAP[note] + (octave + 1) * 12;
+    return 440 * (2 ** ((midi - 69) / 12));
+  }
 
   function isMobileBrowser() {
     const ua = navigator.userAgent;
@@ -40,14 +57,71 @@
     if (onStateChange) onStateChange(isPlaying);
   }
 
-  async function ensureUnlocked() {
-    await Tone.start();
-    const rawContext = Tone.getContext().rawContext;
-    if (rawContext?.state === 'suspended') {
-      await rawContext.resume();
+  function createImpulseBuffer(context, duration, decay) {
+    const rate = context.sampleRate;
+    const length = Math.floor(rate * duration);
+    const impulse = context.createBuffer(2, length, rate);
+    for (let ch = 0; ch < 2; ch += 1) {
+      const data = impulse.getChannelData(ch);
+      for (let i = 0; i < length; i += 1) {
+        data[i] = (Math.random() * 2 - 1) * ((1 - i / length) ** decay);
+      }
     }
-    if (Tone.context.state === 'suspended') {
-      await Tone.context.resume();
+    return impulse;
+  }
+
+  function setupOutputChain() {
+    if (!ctx || !masterGain) return;
+
+    if (useLiteAudio()) {
+      outputNode = masterGain;
+      masterGain.connect(ctx.destination);
+      return;
+    }
+
+    const dryGain = ctx.createGain();
+    dryGain.gain.value = 0.8;
+
+    const wetGain = ctx.createGain();
+    wetGain.gain.value = 0.2;
+
+    const convolver = ctx.createConvolver();
+    convolver.buffer = createImpulseBuffer(ctx, 2.5, 2);
+
+    masterGain.connect(dryGain);
+    masterGain.connect(convolver);
+    convolver.connect(wetGain);
+    dryGain.connect(ctx.destination);
+    wetGain.connect(ctx.destination);
+    outputNode = masterGain;
+  }
+
+  function getContext() {
+    if (!ctx) {
+      ctx = new AudioCtx();
+      masterGain = ctx.createGain();
+      masterGain.gain.value = 0.8;
+      setupOutputChain();
+    }
+    return ctx;
+  }
+
+  function playSilentBuffer() {
+    const c = getContext();
+    const buffer = c.createBuffer(1, 1, c.sampleRate);
+    buffer.getChannelData(0)[0] = 0;
+    const source = c.createBufferSource();
+    source.buffer = buffer;
+    source.connect(c.destination);
+    source.start(0);
+    source.stop(c.currentTime + 0.001);
+  }
+
+  async function ensureUnlocked() {
+    const c = getContext();
+    playSilentBuffer();
+    if (c.state === 'suspended') {
+      await c.resume();
     }
   }
 
@@ -70,17 +144,182 @@
 
   bindMobileAudioResume();
 
-  async function warmUpSynths() {
-    if (!pianoSynth || !drumSynth || !snareSynth || !triangleSynth) return;
+  function trackNode(node) {
+    scheduledNodes.push(node);
+    return node;
+  }
 
-    const now = Tone.now();
+  function clearScheduledNodes() {
+    scheduledNodes.forEach((node) => {
+      try {
+        if (node.stop) node.stop(0);
+        node.disconnect?.();
+      } catch {
+        /* already stopped */
+      }
+    });
+    scheduledNodes = [];
+  }
+
+  function playPiano(pitch, duration, when) {
+    const c = getContext();
+    const freq = pitchToFreq(pitch);
+    const t = when ?? c.currentTime;
+    const dur = Math.max(duration, 0.05);
+
+    const osc = c.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(freq, t);
+
+    const gain = c.createGain();
+    const peak = 0.35;
+    gain.gain.setValueAtTime(0.001, t);
+    gain.gain.exponentialRampToValueAtTime(peak, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(peak * 0.3, t + Math.min(dur * 0.4, 0.5));
+    gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+
+    osc.connect(gain);
+    gain.connect(outputNode);
+    osc.start(t);
+    osc.stop(t + dur + 0.05);
+    trackNode(osc);
+    trackNode(gain);
+  }
+
+  function playBassDrum(duration, when) {
+    const c = getContext();
+    const t = when ?? c.currentTime;
+    const dur = Math.max(duration, 0.1);
+
+    const osc = c.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(150, t);
+    osc.frequency.exponentialRampToValueAtTime(40, t + 0.08);
+
+    const gain = c.createGain();
+    gain.gain.setValueAtTime(0.8, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+
+    osc.connect(gain);
+    gain.connect(outputNode);
+    osc.start(t);
+    osc.stop(t + dur + 0.05);
+    trackNode(osc);
+    trackNode(gain);
+  }
+
+  function playSnare(duration, when) {
+    const c = getContext();
+    const t = when ?? c.currentTime;
+    const dur = Math.max(duration, 0.1);
+    const len = Math.ceil(c.sampleRate * dur);
+
+    const buffer = c.createBuffer(1, len, c.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < len; i += 1) {
+      data[i] = Math.random() * 2 - 1;
+    }
+
+    const noise = c.createBufferSource();
+    noise.buffer = buffer;
+
+    const filter = c.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.value = 1000;
+
+    const gain = c.createGain();
+    gain.gain.setValueAtTime(0.5, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(outputNode);
+    noise.start(t);
+    noise.stop(t + dur + 0.05);
+    trackNode(noise);
+    trackNode(filter);
+    trackNode(gain);
+  }
+
+  function playTriangle(duration, when) {
+    const c = getContext();
+    const t = when ?? c.currentTime;
+    const dur = Math.max(duration, 0.5);
+    const freq = pitchToFreq('A6');
+
+    const len = Math.ceil(c.sampleRate * dur);
+    const buffer = c.createBuffer(1, len, c.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < len; i += 1) {
+      data[i] = Math.random() * 2 - 1;
+    }
+
+    const noise = c.createBufferSource();
+    noise.buffer = buffer;
+
+    const filter = c.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(freq, t);
+    filter.Q.setValueAtTime(10, t);
+
+    const noiseGain = c.createGain();
+    noiseGain.gain.setValueAtTime(0.5, t);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+
+    const partial = c.createOscillator();
+    partial.type = 'sine';
+    partial.frequency.setValueAtTime(freq, t);
+
+    const partialGain = c.createGain();
+    partialGain.gain.setValueAtTime(0.15, t);
+    partialGain.gain.exponentialRampToValueAtTime(0.001, t + dur * 0.7);
+
+    const mix = c.createGain();
+    mix.gain.value = 1;
+
+    noise.connect(filter);
+    filter.connect(noiseGain);
+    partial.connect(partialGain);
+    noiseGain.connect(mix);
+    partialGain.connect(mix);
+    mix.connect(outputNode);
+
+    noise.start(t);
+    noise.stop(t + dur + 0.05);
+    partial.start(t);
+    partial.stop(t + dur + 0.05);
+    trackNode(noise);
+    trackNode(filter);
+    trackNode(noiseGain);
+    trackNode(partial);
+    trackNode(partialGain);
+    trackNode(mix);
+  }
+
+  function scheduleEvent(ev, startTime) {
+    const when = startTime + ev.time;
+    if (ev.type === 'melodic') {
+      playPiano(ev.pitch, ev.duration, when);
+    } else if (ev.instrument === 'snareDrum') {
+      playSnare(ev.duration, when);
+    } else if (ev.instrument === 'triangle') {
+      playTriangle(ev.duration, when);
+    } else {
+      playBassDrum(ev.duration, when);
+    }
+  }
+
+  async function warmUpSynths() {
+    const c = getContext();
+    const now = c.currentTime;
     const warmDur = 0.05;
-    pianoSynth.triggerAttackRelease('C4', warmDur, now);
-    drumSynth.triggerAttackRelease('C2', warmDur, now + 0.01);
-    snareSynth.triggerAttackRelease(warmDur, now + 0.02);
-    triangleSynth.triggerAttackRelease('A6', warmDur, now + 0.03);
-    await Tone.context.resume();
+    playPiano('C4', warmDur, now);
+    playBassDrum(warmDur, now + 0.01);
+    playSnare(warmDur, now + 0.02);
+    playTriangle(warmDur, now + 0.03);
+    await c.resume();
     await new Promise((resolve) => setTimeout(resolve, 80));
+    clearScheduledNodes();
   }
 
   async function initAudio() {
@@ -89,71 +328,7 @@
     if (initPromise) return initPromise;
 
     initPromise = (async () => {
-      const lite = useLiteAudio();
-
-      if (!lite && !reverb) {
-        reverb = new Tone.Reverb({ decay: 2.5, wet: 0.2 }).toDestination();
-        await reverb.generate();
-      }
-
-      if (!pianoSynth) {
-        pianoSynth = new Tone.PolySynth(Tone.FMSynth, {
-          harmonicity: 3,
-          modulationIndex: 10,
-          detune: 0,
-          oscillator: { type: 'sine' },
-          envelope: { attack: 0.005, decay: 1.2, sustain: 0.1, release: 1.2 },
-          modulation: { type: 'square' },
-          modulationEnvelope: { attack: 0.002, decay: 0.2, sustain: 0, release: 0.2 },
-        });
-        if (lite) {
-          pianoSynth.toDestination();
-        } else {
-          pianoSynth.connect(reverb);
-        }
-        pianoSynth.volume.value = -8;
-      }
-
-      if (!drumSynth) {
-        drumSynth = new Tone.MembraneSynth({
-          pitchDecay: 0.05,
-          octaves: 4,
-          oscillator: { type: 'sine' },
-          envelope: { attack: 0.001, decay: 0.4, sustain: 0, release: 0.2 },
-        }).toDestination();
-        drumSynth.volume.value = -3;
-      }
-
-      if (!snareSynth) {
-        snareSynth = new Tone.NoiseSynth({
-          noise: { type: 'white' },
-          envelope: { attack: 0.001, decay: 0.12, sustain: 0, release: 0.05 },
-        });
-        if (lite) {
-          snareSynth.toDestination();
-        } else {
-          snareSynth.connect(reverb);
-        }
-        snareSynth.volume.value = -6;
-      }
-
-      if (!triangleSynth) {
-        triangleSynth = new Tone.MetalSynth({
-          frequency: 800,
-          harmonicity: 5.1,
-          modulationIndex: 32,
-          resonance: 5000,
-          octaves: 1.5,
-          envelope: { attack: 0.001, decay: 0.6, release: 0.2 },
-        });
-        if (lite) {
-          triangleSynth.toDestination();
-        } else {
-          triangleSynth.connect(reverb);
-        }
-        triangleSynth.volume.value = -20;
-      }
-
+      getContext();
       await warmUpSynths();
       audioReady = true;
       return true;
@@ -183,18 +358,12 @@
     return loopEnabled;
   }
 
-  function clearTransport() {
-    Tone.Transport.stop();
-    Tone.Transport.cancel();
-    Tone.Transport.position = 0;
-    scheduledEvents.forEach((id) => Tone.Transport.clear(id));
-    scheduledEvents = [];
-  }
-
   function stopPlayback() {
-    clearTransport();
+    playbackToken += 1;
+    clearScheduledNodes();
     isPlaying = false;
     progress = 0;
+    playbackStartTime = 0;
     activeCells = [];
     cellSchedule = [];
 
@@ -206,9 +375,11 @@
     notifyStateChange();
   }
 
-  function finishPlayback() {
+  function finishPlayback(token) {
+    if (token !== playbackToken) return;
+
     if (loopEnabled && lastSong) {
-      clearTransport();
+      clearScheduledNodes();
       isPlaying = false;
       progress = 0;
       activeCells = [];
@@ -228,6 +399,8 @@
     await initAudio();
 
     lastSong = song;
+    playbackToken += 1;
+    const token = playbackToken;
 
     const { Schedule } = window.WMF;
     const schedule = Schedule.buildSchedule(song);
@@ -243,47 +416,38 @@
       totalDuration = maxMeasures * cfg.beatCount * beatSec;
     }
 
-    Tone.Transport.bpm.value = song.tempo;
+    const c = getContext();
+    playbackStartTime = c.currentTime + 0.1;
 
     events.forEach((ev) => {
-      const id = Tone.Transport.schedule((t) => {
-        if (ev.type === 'melodic') {
-          pianoSynth.triggerAttackRelease(ev.pitch, ev.duration, t);
-        } else if (ev.instrument === 'snareDrum') {
-          snareSynth.triggerAttackRelease(ev.duration, t);
-        } else if (ev.instrument === 'triangle') {
-          triangleSynth.triggerAttackRelease('A6', ev.duration, t);
-        } else {
-          drumSynth.triggerAttackRelease(ev.pitch, ev.duration, t);
-        }
-      }, ev.time);
-      scheduledEvents.push(id);
+      scheduleEvent(ev, playbackStartTime);
     });
 
     isPlaying = true;
     notifyStateChange();
-    Tone.Transport.start();
 
     const animate = () => {
-      if (!isPlaying) return;
+      if (!isPlaying || token !== playbackToken) return;
 
-      const transportSeconds = Tone.Transport.seconds;
+      const transportSeconds = Math.max(0, c.currentTime - playbackStartTime);
       progress = totalDuration > 0 ? Math.min(transportSeconds / totalDuration, 1) : 0;
       updateActiveCells(transportSeconds);
 
       if (window.WMF.Grid) window.WMF.Grid.updatePlayingHighlight();
 
       if (progress >= 1) {
-        finishPlayback();
+        finishPlayback(token);
         return;
       }
       progressRaf = requestAnimationFrame(animate);
     };
     progressRaf = requestAnimationFrame(animate);
 
-    Tone.Transport.scheduleOnce(() => {
-      finishPlayback();
-    }, totalDuration + 0.05);
+    setTimeout(() => {
+      if (token === playbackToken && isPlaying) {
+        finishPlayback(token);
+      }
+    }, (totalDuration + 0.15) * 1000);
   }
 
   async function playSong(song) {
@@ -303,8 +467,8 @@
       }));
   }
 
-  function setTempo(bpm) {
-    Tone.Transport.bpm.value = bpm;
+  function setTempo() {
+    /* tempo is baked into buildSchedule; no runtime transport */
   }
 
   function getProgress() {
@@ -324,9 +488,8 @@
     try {
       await unlockFromUserGesture();
       await initAudio();
-      if (pianoSynth) {
-        pianoSynth.triggerAttackRelease(pitch, '8n', Tone.now());
-      }
+      const c = getContext();
+      playPiano(pitch, 0.3, c.currentTime);
     } catch {
       /* audio preview optional */
     }
@@ -337,13 +500,14 @@
     try {
       await unlockFromUserGesture();
       await initAudio();
-      const now = Tone.now();
+      const c = getContext();
+      const now = c.currentTime;
       if (instrument === 'snareDrum') {
-        snareSynth.triggerAttackRelease('8n', now);
+        playSnare(0.15, now);
       } else if (instrument === 'triangle') {
-        triangleSynth.triggerAttackRelease('A6', '8n', now);
+        playTriangle(0.3, now);
       } else {
-        drumSynth.triggerAttackRelease('C2', '8n', now);
+        playBassDrum(0.2, now);
       }
     } catch {
       /* audio preview optional */
