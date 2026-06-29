@@ -26,6 +26,120 @@
   const btnPlay = document.getElementById('btn-play');
   const playIcon = btnPlay?.querySelector('.play-icon');
   const btnLoop = document.getElementById('btn-loop');
+  const songNameEl = document.getElementById('song-name');
+  const btnRename = document.getElementById('btn-rename');
+  const btnAutosave = document.getElementById('btn-autosave');
+  const btnExport = document.getElementById('btn-export');
+
+  const AUTOSAVE_DELAY_MS = 10000;
+  let autosaveTimer = null;
+  let isDirty = false;
+  let isRenaming = false;
+
+  function updateSongNameDisplay() {
+    if (!songNameEl || isRenaming) return;
+    const name = (song.name || '').trim();
+    if (name) {
+      songNameEl.textContent = name;
+      songNameEl.classList.remove('is-untitled');
+    } else {
+      songNameEl.textContent = I18n.t('untitledSong');
+      songNameEl.classList.add('is-untitled');
+    }
+  }
+
+  function updateAutosaveButton() {
+    if (!btnAutosave) return;
+    if (isDirty) {
+      btnAutosave.textContent = I18n.t('saveState');
+      btnAutosave.classList.remove('is-saved');
+      btnAutosave.classList.add('is-dirty');
+    } else {
+      btnAutosave.textContent = I18n.t('savedState');
+      btnAutosave.classList.remove('is-dirty');
+      btnAutosave.classList.add('is-saved');
+    }
+  }
+
+  function setAutosaveDirty() {
+    isDirty = true;
+    updateAutosaveButton();
+  }
+
+  function setAutosaveSaved() {
+    isDirty = false;
+    if (autosaveTimer) {
+      clearTimeout(autosaveTimer);
+      autosaveTimer = null;
+    }
+    updateAutosaveButton();
+  }
+
+  function performAutosave() {
+    song = Grid.getSong();
+    song.tempo = normalizeTempo(song.tempo);
+    Storage.saveToLocalStorage(song);
+    setAutosaveSaved();
+  }
+
+  function scheduleAutosave() {
+    setAutosaveDirty();
+    if (autosaveTimer) clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(() => {
+      autosaveTimer = null;
+      performAutosave();
+    }, AUTOSAVE_DELAY_MS);
+  }
+
+  function startRenameEdit() {
+    if (!songNameEl || isRenaming) return;
+    isRenaming = true;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'song-name-input';
+    input.value = (song.name || '').trim();
+    input.setAttribute('aria-label', I18n.t('rename'));
+    input.maxLength = 64;
+
+    const commitRename = () => {
+      if (!isRenaming) return;
+      isRenaming = false;
+      const newName = input.value.trim();
+      input.replaceWith(songNameEl);
+      if (newName !== (song.name || '').trim()) {
+        song = Grid.getSong();
+        song.name = newName;
+        onSongChange(song);
+      }
+      updateSongNameDisplay();
+    };
+
+    const cancelRename = () => {
+      if (!isRenaming) return;
+      isRenaming = false;
+      input.replaceWith(songNameEl);
+      updateSongNameDisplay();
+    };
+
+    songNameEl.replaceWith(input);
+    input.focus();
+    input.select();
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        commitRename();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        cancelRename();
+      }
+    });
+
+    input.addEventListener('blur', () => {
+      commitRename();
+    });
+  }
 
   function syncMeterLabel() {
     if (!meterLabel || !song.timeSignature) return;
@@ -89,6 +203,8 @@
     updatePlayButton();
     refreshSolfege();
     updateLangSelectedState();
+    updateSongNameDisplay();
+    updateAutosaveButton();
   }
 
   function setTransportLocked(locked) {
@@ -193,9 +309,10 @@
   function onSongChange(updated) {
     song = updated || Grid.getSong();
     song.tempo = normalizeTempo(song.tempo);
-    Storage.saveToLocalStorage(song);
+    scheduleAutosave();
     syncMeterLabel();
     syncTempoSlider();
+    updateSongNameDisplay();
   }
 
   function showToast(message) {
@@ -217,6 +334,8 @@
   Grid.initGrid(song, onSongChange);
 
   applyLanguage();
+  updateSongNameDisplay();
+  setAutosaveSaved();
 
   let audioPreloaded = false;
   function preloadAudioOnce() {
@@ -339,10 +458,19 @@
     btnLoop.classList.toggle('active', next);
   });
 
-  document.getElementById('btn-save')?.addEventListener('click', () => {
+  btnRename?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    startRenameEdit();
+  });
+
+  btnAutosave?.addEventListener('click', () => {
+    performAutosave();
+  });
+
+  btnExport?.addEventListener('click', () => {
     song = Grid.getSong();
     Storage.downloadJson(song);
-    showToast(I18n.t('toastSaved'));
+    showToast(I18n.t('toastExported'));
   });
 
   document.getElementById('file-upload')?.addEventListener('change', async (e) => {
@@ -351,9 +479,14 @@
     try {
       song = await Storage.uploadJson(file);
       song.tempo = normalizeTempo(song.tempo);
+      if (typeof song.name !== 'string') song.name = '';
       Grid.setSong(song);
-      onSongChange(song);
-      showToast(I18n.t('toastLoaded'));
+      syncMeterLabel();
+      syncTempoSlider();
+      updateSongNameDisplay();
+      Storage.saveToLocalStorage(song);
+      setAutosaveSaved();
+      showToast(I18n.t('toastImported'));
     } catch {
       showToast(I18n.t('toastReadError'));
     }

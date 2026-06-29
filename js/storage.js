@@ -38,12 +38,23 @@
     return null;
   }
 
+  function sanitizeFilename(name) {
+    return (name || '').replace(/[\\/:*?"<>|]/g, '_').trim();
+  }
+
+  function getSongFilename(song) {
+    const I18n = window.WMF?.I18n;
+    const displayName = (song.name || '').trim()
+      || (I18n ? I18n.t('untitledSong') : 'Untitled Song');
+    return `MukeBox - ${sanitizeFilename(displayName)}.json`;
+  }
+
   function downloadJson(song) {
     const blob = new Blob([serializeSong(song)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'mukebox-song.json';
+    a.download = getSongFilename(song);
     a.click();
     URL.revokeObjectURL(url);
   }

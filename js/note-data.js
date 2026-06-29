@@ -161,6 +161,7 @@
     const timeSignature = { num: 4, den: 4 };
     const song = {
       version: SONG_VERSION,
+      name: '',
       tempo: DEFAULT_TEMPO,
       timeSignature,
       tracks: [
@@ -562,6 +563,7 @@
     const timeSignature = data.timeSignature || { num: 4, den: 4 };
     return {
       version: SONG_VERSION,
+      name: data.name || '',
       tempo: normalizeTempo(data.tempo ?? DEFAULT_TEMPO),
       timeSignature,
       tracks: (data.tracks || []).map((track) => ({
@@ -635,6 +637,7 @@
     const timeSignature = data.timeSignature || { num: 4, den: 4 };
     const song = {
       version: SONG_VERSION,
+      name: data.name || '',
       tempo: normalizeTempo(data.tempo ?? DEFAULT_TEMPO),
       timeSignature,
       tracks: (data.tracks || []).map((track) => ({

@@ -16,11 +16,17 @@
           <button type="button" class="meter-option lang-option" data-lang="en" role="option">English</button>
         </div>
       </div>
-      <h1 class="app-top-title">MukeBox</h1>
+      <h1 class="app-top-title">
+        <span class="app-top-brand">MukeBox</span>
+        <span class="app-top-sep" aria-hidden="true">-</span>
+        <span id="song-name" class="song-name"></span>
+        <button type="button" id="btn-rename" class="btn-rename" data-i18n-title="rename" data-i18n-aria="rename" aria-label="이름 변경">✏️</button>
+      </h1>
       <div class="app-top-actions">
-        <button type="button" id="btn-save" class="btn-icon" data-i18n-title="save" data-i18n-aria="save">💾</button>
-        <label class="btn-icon btn-file" data-i18n-title="load" data-i18n-aria="load">
-          📂
+        <button type="button" id="btn-autosave" class="btn-autosave is-saved">저장됨</button>
+        <button type="button" id="btn-export" class="btn-icon" data-i18n-title="export" data-i18n-aria="export">📤</button>
+        <label class="btn-icon btn-file" data-i18n-title="import" data-i18n-aria="import">
+          📥
           <input type="file" id="file-upload" accept=".json,application/json" hidden>
         </label>
         <button type="button" id="btn-help" class="btn-icon" data-i18n-title="help" data-i18n-aria="help">?</button>
@@ -84,12 +90,10 @@
     <div class="modal-content">
       <h3 id="help-modal-title" data-i18n="helpTitle">사용 방법</h3>
       <ul class="help-list">
-        <li data-i18n-html="helpMelody"><strong>멜로디</strong> — 칸을 탭해 음을 켜고 끕니다. (C3~C5, 반음 포함)</li>
-        <li data-i18n-html="helpBassDrum"><strong>큰북</strong> — 아래 행의 칸을 탭해 타격 on/off.</li>
-        <li data-i18n-html="helpSplit"><strong>분할</strong> — 칸을 길게 누르기 (또는 더블클릭) → 4분→8분→16분음표.</li>
-        <li data-i18n-html="helpMerge"><strong>병합</strong> — 같은 음의 인접 칸을 드래그하면 즉시 합쳐집니다.</li>
-        <li data-i18n-html="helpScroll"><strong>스크롤</strong> — 눈금·건반·빈 영역을 드래그해 상하좌우로 이동합니다.</li>
-        <li data-i18n-html="helpMeasures"><strong>마디</strong> — 오른쪽 <strong>+</strong> 버튼으로 마디 4개 추가. 재생 시 끝의 빈 마디는 4개 단위로 정리됩니다.</li>
+        <li data-i18n-html="helpMelody"><strong>음표넣기</strong> — 칸을 탭해 음표를 넣습니다.</li>
+        <li data-i18n-html="helpSplit"><strong>음표 나누기</strong> — 칸을 길게 누르기 (또는 더블클릭) → 4분→8분→16분음표.</li>
+        <li data-i18n-html="helpMerge"><strong>음표 합치기</strong> — 같은 음의 인접 칸을 드래그하면 즉시 합쳐집니다.</li>
+        <li data-i18n-html="helpMeasures"><strong>마디 추가</strong> — 오른쪽 <strong>+</strong> 버튼으로 마디 4개 추가. 재생 시 끝의 빈 마디는 4개 단위로 정리됩니다.</li>
       </ul>
       <div class="modal-actions">
         <button type="button" id="help-close" class="btn btn-primary" data-i18n="close">닫기</button>

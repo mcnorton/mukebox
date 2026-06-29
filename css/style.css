@@ -85,6 +85,94 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  max-width: 100%;
+}
+
+.app-top-brand {
+  flex-shrink: 0;
+}
+
+.app-top-sep {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.song-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  max-width: 10rem;
+  color: var(--text);
+}
+
+.song-name.is-untitled {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.song-name-input {
+  font: inherit;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.1rem 0.35rem;
+  min-width: 5rem;
+  max-width: 10rem;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.btn-rename {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: var(--radius-round);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  padding: 0;
+}
+
+.btn-rename:hover {
+  background: var(--bg);
+}
+
+.btn-autosave {
+  height: 32px;
+  min-width: 32px;
+  padding: 0 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  white-space: nowrap;
+}
+
+.btn-autosave.is-dirty {
+  background: #000;
+  color: #fff;
+  border-color: #000;
+}
+
+.btn-autosave.is-saved {
+  background: #fff;
+  color: var(--text-muted);
+  border-color: var(--border);
 }
 
 .app-top-actions {
@@ -206,6 +294,10 @@ body {
 }
 
 .ruler-spacer {
+  position: sticky;
+  top: 0;
+  z-index: 13;
+  flex-shrink: 0;
   border-bottom: 1px solid var(--border-grid);
   background: #faf7f2;
 }
@@ -538,6 +630,9 @@ body {
 /* Beat ruler */
 .beat-ruler {
   display: flex;
+  position: sticky;
+  top: 0;
+  z-index: 11;
   border-bottom: 1px solid var(--border);
   background: #faf7f2;
   touch-action: pan-x pan-y;
@@ -1078,6 +1173,22 @@ body {
 
   .app-top-title {
     font-size: 1rem;
+  }
+
+  .song-name {
+    max-width: 8rem;
+  }
+
+  .btn-rename {
+    width: 28px;
+    height: 28px;
+    font-size: 0.85rem;
+  }
+
+  .btn-autosave {
+    height: 40px;
+    padding: 0 0.75rem;
+    font-size: 0.8rem;
   }
 
   .btn-icon {
