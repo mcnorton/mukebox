@@ -1206,6 +1206,11 @@ body {
   margin-bottom: 0.4rem;
 }
 
+.install-steps li {
+  margin-bottom: 0.6rem;
+  line-height: 1.5;
+}
+
 .modal-content p {
   margin: 0 0 1rem;
   color: var(--text-muted);

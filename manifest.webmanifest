@@ -1,6 +1,7 @@
 {
   "name": "MukeBox",
   "short_name": "MukeBox",
+  "id": "./index.html",
   "description": "음표 길이를 직접 만들고 연주하는 교육용 악보+연주 웹앱",
   "lang": "ko",
   "start_url": "./index.html",

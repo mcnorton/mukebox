@@ -128,6 +128,21 @@
     </div>
   </div>
 
+  <div id="ios-install-modal" class="modal hidden" role="dialog" aria-labelledby="ios-install-title">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <h3 id="ios-install-title" data-i18n="installTitleIOS">홈 화면에 추가</h3>
+      <ol class="help-list install-steps">
+        <li data-i18n-html="installStepShare"></li>
+        <li data-i18n-html="installStepAdd"></li>
+        <li data-i18n-html="installStepDone"></li>
+      </ol>
+      <div class="modal-actions">
+        <button type="button" id="ios-install-close" class="btn btn-primary" data-i18n="close">닫기</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="toast hidden" role="status"></div>
 
   <script src="js/model.js"></script>
@@ -148,46 +163,66 @@
     (function setupInstall() {
       const btn = document.getElementById('btn-install');
       if (!btn) return;
-      const t = (key) => (window.WMF && window.WMF.I18n ? window.WMF.I18n.t(key) : key);
-      const isStandalone =
+
+      const isStandalone = () =>
         window.matchMedia('(display-mode: standalone)').matches ||
         window.navigator.standalone === true;
-      if (isStandalone) return;
+
+      const hide = () => btn.classList.add('hidden');
+      const show = () => btn.classList.remove('hidden');
+
+      if (isStandalone()) {
+        hide();
+        return;
+      }
+
+      const isIOS = /iphone|ipad|ipod/i.test(window.navigator.userAgent) ||
+        (window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1);
 
       let deferredPrompt = null;
 
       window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         deferredPrompt = e;
-        btn.classList.remove('hidden');
+        show();
       });
 
       window.addEventListener('appinstalled', () => {
         deferredPrompt = null;
-        btn.classList.add('hidden');
+        hide();
       });
 
-      const isIOS = /iphone|ipad|ipod/i.test(window.navigator.userAgent) ||
-        (window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1);
-
-      if (isIOS) {
-        btn.classList.remove('hidden');
+      // Already-installed detection (Chrome/Android, best-effort).
+      if (navigator.getInstalledRelatedApps) {
+        navigator.getInstalledRelatedApps().then((apps) => {
+          if (apps && apps.length > 0) hide();
+        }).catch(() => { /* ignore */ });
       }
+
+      // iOS Safari has no beforeinstallprompt; show the button so we can guide.
+      if (isIOS) show();
+
+      // Re-hide if the app gets launched in standalone after install.
+      window.addEventListener('visibilitychange', () => {
+        if (isStandalone()) hide();
+      });
+
+      const iosModal = document.getElementById('ios-install-modal');
+      const iosClose = document.getElementById('ios-install-close');
+      const backdrop = iosModal ? iosModal.querySelector('.modal-backdrop') : null;
+      const closeIosModal = () => { if (iosModal) iosModal.classList.add('hidden'); };
+      if (iosClose) iosClose.addEventListener('click', closeIosModal);
+      if (backdrop) backdrop.addEventListener('click', closeIosModal);
 
       btn.addEventListener('click', async () => {
         if (deferredPrompt) {
           deferredPrompt.prompt();
-          await deferredPrompt.userChoice;
+          const choice = await deferredPrompt.userChoice;
           deferredPrompt = null;
-          btn.classList.add('hidden');
+          if (choice && choice.outcome === 'accepted') hide();
           return;
         }
-        const toast = document.getElementById('toast');
-        if (toast) {
-          toast.textContent = t('installHintIOS');
-          toast.classList.remove('hidden');
-          setTimeout(() => toast.classList.add('hidden'), 4000);
-        }
+        if (iosModal) iosModal.classList.remove('hidden');
       });
     })();
   </script>
