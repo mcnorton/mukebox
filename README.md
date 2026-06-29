@@ -13,7 +13,16 @@ npx serve .
 python3 -m http.server 8080
 ```
 
-브라우저에서 접속 후 **▶ 재생**을 누르면 Tone.js 오디오가 시작됩니다.
+브라우저에서 접속 후 **▶ 재생**을 누르면 Web Audio 오디오가 시작됩니다.
+
+## 태블릿에 설치하기 (PWA)
+
+MukeBox는 PWA(Progressive Web App)로, 홈 화면에 설치하면 전체화면 앱처럼 오프라인에서도 동작합니다.
+
+- **Android / Chrome**: 접속하면 헤더 우측에 **설치** 버튼이 나타납니다. 눌러서 설치하세요. (또는 브라우저 메뉴 → "앱 설치/홈 화면에 추가")
+- **iPad / Safari**: 공유 버튼 → **홈 화면에 추가**를 누릅니다. (헤더 **설치** 버튼을 누르면 안내가 표시됩니다.)
+
+> 설치/오프라인 캐시는 서비스 워커가 필요하므로 `https://` 또는 `localhost`(`http://`) 환경에서 접속해야 합니다.
 
 ## 기능
 
@@ -21,7 +30,7 @@ python3 -m http.server 8080
 - **큰북**: 타악기 행, 칸 클릭 on/off
 - **음표 길이**: 더블클릭 분할(4분→8분→16분), 드래그+[OK] 병합
 - **박자**: 2/4, 3/4, 4/4, 6/8 — 변경해도 음표 형태(dur) 유지
-- **연주**: Tone.js (FMSynth + MembraneSynth), 재생 중 칸 하이라이트
+- **연주**: Web Audio API 신디사이저, 재생 중 칸 하이라이트
 - **저장**: localStorage 자동 저장 (`mukebox-song`), JSON보내기/불러오기
 
 ## 사용 방법
@@ -35,11 +44,16 @@ python3 -m http.server 8080
 ## 프로젝트 구조
 
 ```
+index.html
+manifest.webmanifest  # PWA 매니페스트
+sw.js                 # 서비스 워커 (오프라인 캐시)
+icons/                # 앱 아이콘 (192/512/maskable/apple-touch)
 js/
 ├── model.js       # 박자·음역·악기 상수
+├── i18n.js        # 다국어 (ko/en)
 ├── note-data.js   # v3 곡 데이터 (dur 분수, 편집, 직렬화)
 ├── schedule.js    # 재생 스케줄 (초 단위)
-├── audio.js       # Tone.js
+├── audio.js       # Web Audio API
 ├── grid.js        # 피아노롤 UI
 ├── storage.js     # 저장/불러오기
 └── main.js
@@ -60,7 +74,8 @@ node scripts/test-migration.js
 ## 기술
 
 - HTML / CSS / JavaScript (Vanilla)
-- [Tone.js](https://tonejs.github.io/) 14.x (CDN)
+- Web Audio API (외부 의존성 없음, 완전 오프라인 동작)
+- PWA: Web App Manifest + Service Worker (`sw.js`)
 
 ## 라이선스
 

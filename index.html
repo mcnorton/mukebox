@@ -4,6 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>MukeBox</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#f06292">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="MukeBox">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -30,6 +37,7 @@
         <button type="button" id="btn-rename" class="btn-rename" data-i18n-title="rename" data-i18n-aria="rename" aria-label="이름 변경">✏️</button>
       </h1>
       <div class="app-top-actions">
+        <button type="button" id="btn-install" class="btn-autosave is-saved hidden" data-i18n="install" data-i18n-aria="install">설치</button>
         <button type="button" id="btn-autosave" class="btn-autosave is-saved">저장됨</button>
         <button type="button" id="btn-export" class="btn-icon" data-i18n-title="export" data-i18n-aria="export">📤</button>
         <label class="btn-icon btn-file" data-i18n-title="import" data-i18n-aria="import">
@@ -130,5 +138,58 @@
   <script src="js/audio.js"></script>
   <script src="js/grid.js"></script>
   <script src="js/main.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => { /* ignore */ });
+      });
+    }
+
+    (function setupInstall() {
+      const btn = document.getElementById('btn-install');
+      if (!btn) return;
+      const t = (key) => (window.WMF && window.WMF.I18n ? window.WMF.I18n.t(key) : key);
+      const isStandalone =
+        window.matchMedia('(display-mode: standalone)').matches ||
+        window.navigator.standalone === true;
+      if (isStandalone) return;
+
+      let deferredPrompt = null;
+
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        btn.classList.remove('hidden');
+      });
+
+      window.addEventListener('appinstalled', () => {
+        deferredPrompt = null;
+        btn.classList.add('hidden');
+      });
+
+      const isIOS = /iphone|ipad|ipod/i.test(window.navigator.userAgent) ||
+        (window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1);
+
+      if (isIOS) {
+        btn.classList.remove('hidden');
+      }
+
+      btn.addEventListener('click', async () => {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          await deferredPrompt.userChoice;
+          deferredPrompt = null;
+          btn.classList.add('hidden');
+          return;
+        }
+        const toast = document.getElementById('toast');
+        if (toast) {
+          toast.textContent = t('installHintIOS');
+          toast.classList.remove('hidden');
+          setTimeout(() => toast.classList.add('hidden'), 4000);
+        }
+      });
+    })();
+  </script>
 </body>
 </html>
