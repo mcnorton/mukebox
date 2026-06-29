@@ -259,6 +259,35 @@
     return activeCells;
   }
 
+  async function previewPitch(pitch) {
+    if (isPlaying) return;
+    try {
+      await initAudio();
+      if (pianoSynth) {
+        pianoSynth.triggerAttackRelease(pitch, '8n', Tone.now());
+      }
+    } catch {
+      /* audio preview optional */
+    }
+  }
+
+  async function previewDrum(instrument) {
+    if (isPlaying) return;
+    try {
+      await initAudio();
+      const now = Tone.now();
+      if (instrument === 'snareDrum') {
+        snareSynth.triggerAttackRelease('8n', now);
+      } else if (instrument === 'triangle') {
+        triangleSynth.triggerAttackRelease('A6', '8n', now);
+      } else {
+        drumSynth.triggerAttackRelease('C2', '8n', now);
+      }
+    } catch {
+      /* audio preview optional */
+    }
+  }
+
   window.WMF = window.WMF || {};
   window.WMF.Audio = {
     initAudio,
@@ -269,6 +298,8 @@
     setTempo,
     setLoopEnabled,
     getLoopEnabled,
+    previewPitch,
+    previewDrum,
     get onStateChange() { return onStateChange; },
     set onStateChange(cb) { onStateChange = cb; },
     getProgress,

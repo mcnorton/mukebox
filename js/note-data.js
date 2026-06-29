@@ -316,15 +316,39 @@
     return null;
   }
 
-  function toggleLaneCell(cell) {
-    cell.on = !cell.on;
+  function isMergedLongDur(d) {
+    return d.d === 1 && d.n > 1;
+  }
+
+  function expandToBeatCells(durVal, isPercussion) {
+    const count = durVal.n;
+    return Array.from({ length: count }, () => (
+      isPercussion ? createPercussionCell(dur(1, 1)) : createLaneCell(dur(1, 1), false)
+    ));
+  }
+
+  function toggleLaneCellAt(measure, pitch, cellIndex) {
+    const lane = measure.lanes[pitch];
+    if (!lane) return false;
+    const cell = lane[cellIndex];
+    if (!cell) return false;
+
+    if (cell.on) {
+      cell.on = false;
+      if (isMergedLongDur(cell.dur)) {
+        lane.splice(cellIndex, 1, ...expandToBeatCells(cell.dur, false));
+      }
+    } else {
+      cell.on = true;
+    }
+    return true;
   }
 
   function splitLaneCell(measure, pitch, cellIndex) {
     const lane = measure.lanes[pitch];
     if (!lane) return false;
     const cell = lane[cellIndex];
-    if (!cell || !canSplitDur(cell.dur)) return false;
+    if (!cell || !cell.on || !canSplitDur(cell.dur)) return false;
 
     const halves = splitDurInHalf(cell.dur);
     if (!halves) return false;
@@ -352,7 +376,7 @@
 
   function splitCell(measure, cellIndex) {
     const cell = measure.cells[cellIndex];
-    if (!cell || !canSplitDur(cell.dur)) return false;
+    if (!cell || !cell.notes.includes('hit') || !canSplitDur(cell.dur)) return false;
 
     const halves = splitDurInHalf(cell.dur);
     if (!halves) return false;
@@ -378,8 +402,19 @@
     return true;
   }
 
-  function togglePercussionHit(cell) {
-    cell.notes = cell.notes.includes('hit') ? [] : ['hit'];
+  function togglePercussionHitAt(measure, cellIndex) {
+    const cell = measure.cells[cellIndex];
+    if (!cell) return false;
+
+    if (cell.notes.includes('hit')) {
+      cell.notes = [];
+      if (isMergedLongDur(cell.dur)) {
+        measure.cells.splice(cellIndex, 1, ...expandToBeatCells(cell.dur, true));
+      }
+    } else {
+      cell.notes = ['hit'];
+    }
+    return true;
   }
 
   // --- 직렬화: v2 자동 업그레이드 포함 ---
@@ -510,12 +545,12 @@
     addMeasure,
     addMeasureToAllTracks,
     setTimeSignature,
-    toggleLaneCell,
+    toggleLaneCellAt,
     splitLaneCell,
     mergeLaneCells,
     splitCell,
     mergeCells,
-    togglePercussionHit,
+    togglePercussionHitAt,
     serializeSong,
     deserializeSong,
   });

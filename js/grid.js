@@ -13,12 +13,12 @@
     getTimeSignatureConfig,
     getBeatCount,
     timeSignatureKey,
-    toggleLaneCell,
+    toggleLaneCellAt,
     splitLaneCell,
     mergeLaneCells,
     splitCell,
     mergeCells,
-    togglePercussionHit,
+    togglePercussionHitAt,
     getNoteLabelForCell,
     durToSixteenths,
   } = window.WMF;
@@ -41,17 +41,64 @@
     return window.matchMedia('(pointer: coarse)').matches;
   }
 
+  function isFinePointer() {
+    return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  }
+
+  function clearRowHoverHighlight() {
+    document.querySelectorAll('.lane-row.row-hover-highlight, .piano-key.row-hover-highlight').forEach((el) => {
+      el.classList.remove('row-hover-highlight');
+    });
+  }
+
+  function setRowHoverHighlight(rowEl) {
+    clearRowHoverHighlight();
+    if (!rowEl) return;
+
+    rowEl.classList.add('row-hover-highlight');
+
+    const pitch = rowEl.dataset.pitch;
+    if (pitch) {
+      const key = document.querySelector(`.melody-label-area .piano-key[data-pitch="${pitch}"]`);
+      key?.classList.add('row-hover-highlight');
+      return;
+    }
+
+    const instrument = rowEl.dataset.instrument;
+    if (instrument) {
+      const key = document.querySelector(`.drum-key-panel[data-instrument="${instrument}"]`);
+      key?.classList.add('row-hover-highlight');
+    }
+  }
+
+  function attachRowHoverListeners(areaEl) {
+    if (!isFinePointer()) return;
+
+    areaEl.addEventListener('pointerover', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      const row = e.target.closest('.lane-row');
+      if (row && areaEl.contains(row)) {
+        setRowHoverHighlight(row);
+      }
+    });
+
+    areaEl.addEventListener('pointerleave', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      clearRowHoverHighlight();
+    });
+  }
+
   function updateLayoutSizes() {
     const coarse = isCoarsePointer();
-    BEAT_WIDTH = coarse ? 60 : 48;
-    KEY_WIDTH = coarse ? 72 : 64;
+    BEAT_WIDTH = coarse ? 44 : 48;
+    KEY_WIDTH = coarse ? 60 : 64;
 
     const wrap = document.querySelector('.sequencer-wrap');
     const availableH = wrap?.clientHeight
       || window.innerHeight - (document.querySelector('.app-top')?.offsetHeight || 44)
         - (document.querySelector('.transport-bar')?.offsetHeight || 64);
 
-    RULER_HEIGHT = coarse ? 36 : 28;
+    RULER_HEIGHT = coarse ? 30 : 28;
 
     const whiteCount = PITCHES.filter((p) => !isBlackKey(p)).length;
     const blackCount = PITCHES.length - whiteCount;
@@ -64,8 +111,8 @@
     const rowArea = Math.max(0, availableH - RULER_HEIGHT);
     const unitH = totalUnits > 0 ? rowArea / totalUnits : (coarse ? 38 : 22);
 
-    ROW_HEIGHT = Math.max(coarse ? 22 : 14, Math.floor(unitH));
-    BLACK_ROW_HEIGHT = Math.max(coarse ? 16 : 10, Math.floor(unitH * blackWeight));
+    ROW_HEIGHT = Math.max(coarse ? 16 : 14, Math.floor(unitH));
+    BLACK_ROW_HEIGHT = Math.max(coarse ? 12 : 10, Math.floor(unitH * blackWeight));
   }
 
   updateLayoutSizes();
@@ -137,6 +184,7 @@
     const container = document.getElementById('tracks-container');
     if (!container) return;
     updateLayoutSizes();
+    const savedScrollLeft = document.getElementById('timeline-scroll')?.scrollLeft ?? 0;
     container.innerHTML = '';
     container.dataset.timeSig = timeSignatureKey(song.timeSignature);
 
@@ -184,6 +232,7 @@
     PITCHES.forEach((pitch) => {
       melodyArea.appendChild(renderLaneRow(melodicTrack, pitch, melodicInst));
     });
+    attachRowHoverListeners(melodyArea);
     timeline.appendChild(melodyArea);
 
     percTracks.forEach((track) => {
@@ -193,6 +242,7 @@
       drumArea.dataset.trackId = track.id;
       drumArea.style.setProperty('--drum-color', inst.color);
       drumArea.appendChild(renderDrumLaneRow(track, inst));
+      attachRowHoverListeners(drumArea);
       timeline.appendChild(drumArea);
     });
 
@@ -222,6 +272,8 @@
     inner.appendChild(addCol);
     container.appendChild(inner);
 
+    scrollWrap.scrollLeft = savedScrollLeft;
+
     updatePlayingHighlight();
   }
 
@@ -230,6 +282,7 @@
     const black = isBlackKey(pitch);
     key.className = `piano-key ${black ? 'black' : 'white'}`;
     key.style.height = `${rowHeight(pitch)}px`;
+    key.dataset.pitch = pitch;
     key.title = pitch;
 
     if (!black) {
@@ -260,13 +313,16 @@
     key.className = 'piano-key drum-key-panel';
     key.style.height = `${totalDrumHeight(inst)}px`;
     key.style.setProperty('--drum-color', inst.color);
+    key.dataset.instrument = inst.id;
     key.title = inst.name;
+    key.setAttribute('aria-label', inst.name);
 
-    const label = document.createElement('span');
-    label.className = 'drum-key-label';
-    label.textContent = inst.name;
+    const icon = document.createElement('span');
+    icon.className = 'drum-key-icon';
+    icon.textContent = inst.symbol || '♪';
+    icon.setAttribute('aria-hidden', 'true');
 
-    key.appendChild(label);
+    key.appendChild(icon);
     return key;
   }
 
@@ -508,14 +564,18 @@
 
   function createLaneCellEl(track, measure, pitch, measureIndex, cell, cellIndex, inst) {
     const cellEl = document.createElement('button');
+    const keyNoteClass = isBlackKey(pitch) ? 'black-key-note' : 'white-key-note';
     cellEl.type = 'button';
-    cellEl.className = `lane-cell ${noteLengthClass(cell)}`;
+    cellEl.className = `lane-cell ${keyNoteClass} ${noteLengthClass(cell)}`;
     if (cell.on) cellEl.classList.add('active');
     cellEl.dataset.cellIndex = cellIndex;
     cellEl.dataset.pitch = pitch;
     cellEl.style.flex = `${cellFlexUnits(cell)}`;
     cellEl.style.minWidth = `${cellMinWidth(cell)}px`;
-    cellEl.style.setProperty('--note-color', inst.color);
+    cellEl.style.setProperty(
+      '--note-color',
+      isBlackKey(pitch) ? 'var(--note-black-key)' : 'var(--note-white-key)',
+    );
     cellEl.title = `${pitch} · ${getNoteLabelForCell(cell)}음표`;
 
     attachCellGestures(cellEl, {
@@ -525,7 +585,12 @@
       cellIndex,
       isDrum: false,
       measure,
-      onToggle: () => toggleLaneCell(cell),
+      onToggle: () => {
+        toggleLaneCellAt(measure, pitch, cellIndex);
+        if (cell.on) {
+          window.WMF.Audio?.previewPitch?.(pitch);
+        }
+      },
       onSplit: () => splitLaneCell(measure, pitch, cellIndex),
     });
 
@@ -535,6 +600,7 @@
   function renderDrumLaneRow(track, inst) {
     const row = document.createElement('div');
     row.className = 'lane-row drum-lane-row white-key-row';
+    row.dataset.instrument = track.instrument;
     row.style.height = `${totalDrumHeight(inst)}px`;
 
     track.measures.forEach((measure, measureIndex) => {
@@ -555,7 +621,14 @@
     const cellEl = document.createElement('button');
     cellEl.type = 'button';
     cellEl.className = `lane-cell drum-lane-cell ${noteLengthClass(cell)}`;
-    if (cell.notes.includes('hit')) cellEl.classList.add('active');
+    if (cell.notes.includes('hit')) {
+      cellEl.classList.add('active');
+      const sym = document.createElement('span');
+      sym.className = 'drum-cell-symbol';
+      sym.textContent = inst.symbol || '♪';
+      sym.setAttribute('aria-hidden', 'true');
+      cellEl.appendChild(sym);
+    }
     cellEl.dataset.cellIndex = cellIndex;
     cellEl.style.flex = `${cellFlexUnits(cell)}`;
     cellEl.style.minWidth = `${cellMinWidth(cell)}px`;
@@ -569,7 +642,12 @@
       cellIndex,
       isDrum: true,
       measure,
-      onToggle: () => togglePercussionHit(cell),
+      onToggle: () => {
+        togglePercussionHitAt(measure, cellIndex);
+        if (cell.notes.includes('hit')) {
+          window.WMF.Audio?.previewDrum?.(track.instrument);
+        }
+      },
       onSplit: () => splitCell(measure, cellIndex),
     });
 

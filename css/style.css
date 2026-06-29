@@ -24,6 +24,8 @@
   --transport-chip-width: 6.5rem;
   --tempo-control-width: 7.8rem;
   --key-black-face: #2a2a2a;
+  --note-white-key: #f06292;
+  --note-black-key: #ad1457;
   --key-black-inset: 44%;
   --key-line-black: #000;
 }
@@ -316,8 +318,21 @@ body {
 .drum-lane-cell.note-len-16.active { border-radius: 999px; }
 
 .lane-cell.active {
-  background: var(--note-color, var(--melody-color));
   box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.12);
+}
+
+.lane-cell.active.white-key-note {
+  background: var(--note-white-key);
+  --note-color: var(--note-white-key);
+}
+
+.lane-cell.active.black-key-note {
+  background: var(--note-black-key);
+  --note-color: var(--note-black-key);
+}
+
+.drum-lane-cell.active {
+  background: var(--note-color, var(--drum-color));
 }
 
 .lane-cell.active:hover {
@@ -407,7 +422,6 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.2rem;
   background: linear-gradient(
     to right,
     color-mix(in srgb, var(--drum-color) 8%, white),
@@ -419,16 +433,20 @@ body {
 }
 
 .drum-key-icon {
-  font-size: 1rem;
+  font-size: 1.15rem;
   writing-mode: horizontal-tb;
+  line-height: 1;
 }
 
-.drum-key-label {
-  font-size: 0.62rem;
-  font-weight: 700;
-  line-height: 1.05;
-  text-align: center;
-  word-break: keep-all;
+.drum-cell-symbol {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  color: #fff;
+  pointer-events: none;
 }
 
 .drum-area .lane-cell:hover {
@@ -971,6 +989,29 @@ body {
   display: none;
 }
 
+/* Mouse row highlight — fine pointer only */
+@media (hover: hover) and (pointer: fine) {
+  .lane-row.row-hover-highlight {
+    outline: 2px solid var(--melody-color);
+    outline-offset: -2px;
+    z-index: 3;
+  }
+
+  .drum-area .lane-row.row-hover-highlight {
+    outline-color: var(--drum-color, var(--melody-color));
+  }
+
+  .piano-key.row-hover-highlight {
+    outline: 2px solid var(--melody-color);
+    outline-offset: -2px;
+    z-index: 4;
+  }
+
+  .piano-key.drum-key-panel.row-hover-highlight {
+    outline-color: var(--drum-color, var(--melody-color));
+  }
+}
+
 /* Coarse pointer (tablet / touch) */
 @media (pointer: coarse) {
   :root {
@@ -1020,10 +1061,6 @@ body {
 
   .add-col {
     width: 52px;
-  }
-
-  .lane-cell {
-    min-height: 44px;
   }
 
   .drum-area .lane-cell:active,

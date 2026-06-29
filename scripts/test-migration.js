@@ -29,6 +29,7 @@ const {
   getBeatCount,
   splitLaneCell,
   mergeLaneCells,
+  toggleLaneCellAt,
   deserializeSong,
 } = WMF;
 
@@ -50,12 +51,44 @@ function testDefaultV3() {
 function testSplitPreservesDur() {
   const song = createDefaultSong();
   const m = song.tracks[0].measures[0];
+  m.lanes.C4[0].on = true;
   splitLaneCell(m, 'C4', 0);
   assert(laneDurKeys(m, 'C4').slice(0, 2).join(',') === '1/2,1/2', '8분 split');
   setTimeSignature(song, 3, 4);
   setTimeSignature(song, 4, 4);
   assert(laneDurKeys(song.tracks[0].measures[0], 'C4').slice(0, 2).join(',') === '1/2,1/2', '8분 split survives TS change');
   console.log('OK dur split preserved on TS change');
+}
+
+function testEmptyCellSplitRejected() {
+  const song = createDefaultSong();
+  const m = song.tracks[0].measures[0];
+  assert(!splitLaneCell(m, 'C4', 0), 'empty cell split rejected');
+  console.log('OK empty cell split rejected');
+}
+
+function testMergedNoteOffResetsGrid() {
+  const song = createDefaultSong();
+  const m = song.tracks[0].measures[0];
+  m.lanes.C4[0].on = true;
+  m.lanes.C4[1].on = true;
+  mergeLaneCells(m, 'C4', 0, 1, 4);
+  assert(durKey(m.lanes.C4[0].dur) === '2/1', 'merged 2-beat cell');
+  toggleLaneCellAt(m, 'C4', 0);
+  assert(laneDurKeys(m, 'C4').slice(0, 2).join(',') === '1/1,1/1', '2-beat off resets to quarter cells');
+  assert(!m.lanes.C4[0].on && !m.lanes.C4[1].on, 'reset cells are off');
+  console.log('OK merged note off resets to 1/1 grid');
+}
+
+function testSubdividedNoteOffKeepsGrid() {
+  const song = createDefaultSong();
+  const m = song.tracks[0].measures[0];
+  m.lanes.C4[0].on = true;
+  splitLaneCell(m, 'C4', 0);
+  toggleLaneCellAt(m, 'C4', 0);
+  assert(laneDurKeys(m, 'C4').slice(0, 2).join(',') === '1/2,1/2', '8th-note grid preserved on off');
+  assert(!m.lanes.C4[0].on, 'first eighth cell off');
+  console.log('OK subdivided note off keeps grid');
 }
 
 function testTwoBeatMerge() {
@@ -152,6 +185,9 @@ function testSchedule() {
 try {
   testDefaultV3();
   testSplitPreservesDur();
+  testEmptyCellSplitRejected();
+  testMergedNoteOffResetsGrid();
+  testSubdividedNoteOffKeepsGrid();
   testTwoBeatMerge();
   test34TwoMeasuresTo44();
   testV2Upgrade();
