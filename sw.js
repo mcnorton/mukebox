@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mukebox-v1';
+const CACHE_NAME = 'mukebox-v2';
 
 const APP_SHELL = [
   './',
@@ -14,7 +14,6 @@ const APP_SHELL = [
   './js/grid.js',
   './js/main.js',
   './icons/icon-192.png',
-  './icons/icon-512.png',
   './icons/icon-maskable-512.png',
   './icons/apple-touch-icon.png'
 ];
