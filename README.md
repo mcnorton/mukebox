@@ -18,6 +18,21 @@ Chrome Music Lab [Song Maker](https://musiclab.chromeexperiments.com/Song-Maker/
 > PC·태블릿·스마트폰의 Chrome, Safari, Edge 등 최신 브라우저에서 동작에 적합합니다.  
 > PWA 설치·오프라인 캐시는 `https://` 환경에서 동작하므로 Vercel 주소로 접속하면 됩니다.
 
+## 예제 악보 불러오기
+
+[`score/`](score/) 폴더에 예제 악보 JSON 파일이 있습니다.
+
+- `MukeBox - 하모니카연습곡.json` — 하모니카연습곡
+- `MukeBox - 똑같아요.json` — 똑같아요
+
+1. [`score/`](score/) 폴더에서 원하는 JSON 파일을 **다운로드**합니다. (GitHub에서 파일을 연 뒤 **Download raw file** 또는 **Raw** 버튼을 사용하세요.)
+2. [MukeBox](https://mukebox.vercel.app)에 접속합니다.
+3. 헤더 우측 **가져오기** 버튼(↑ 아이콘)을 누릅니다.
+4. 다운로드한 `.json` 파일을 선택합니다.
+5. 악보가 열리면 **▶ 재생**으로 들어 보세요. **목록**에서도 불러온 악보를 다시 열 수 있습니다.
+
+저장소를 클론한 경우 `score/` 폴더의 JSON 파일을 바로 선택해도 됩니다.
+
 ## 기본 기능
 
 ### 악보 만들기
@@ -61,16 +76,6 @@ Vercel 주소로 접속한 뒤 홈 화면에 추가하면 앱처럼 전체화면
 3. 인접 칸 **드래그** → 즉시 병합.
 4. 하단에서 **박자(Meter)**·**템포**를 바꿉니다.
 5. **▶** 재생/정지, **↻** 반복 연주.
-
-## 로컬에서 실행하기 (선택)
-
-개발·수정 시에는 저장소를 클론한 뒤 간단한 정적 서버로 열면 됩니다.
-
-```bash
-npx serve .
-# 또는
-python3 -m http.server 8080
-```
 
 ## 라이선스
 
