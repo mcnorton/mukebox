@@ -210,7 +210,8 @@ body {
 }
 
 /* 설치 버튼: 음표와 동일한 배경색 + 재생 스파클 효과를 항상 반복 */
-.btn-install {
+.btn-install,
+.btn.btn-install {
   position: relative;
   overflow: visible;
   background: var(--note-white-key);
@@ -220,12 +221,15 @@ body {
   animation: noteSparkle 0.45s ease-in-out infinite alternate;
 }
 
-.btn-install:hover {
+.btn-install:hover,
+.btn.btn-install:hover {
   filter: brightness(1.05);
 }
 
 .btn-install::before,
-.btn-install::after {
+.btn-install::after,
+.btn.btn-install::before,
+.btn.btn-install::after {
   content: '✦';
   position: absolute;
   pointer-events: none;
