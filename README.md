@@ -23,13 +23,13 @@ MukeBox 접속주소 : **[https://mcnorton.github.io/mukebox/](https://mcnorton.
 
 ## 예제 악보 불러오기
 
-`[score/](score/)` 폴더에 예제 악보 ZIP 파일이 있습니다.
+[score/](score/) 폴더에 예제 악보 ZIP 파일이 있습니다.
 
-- `[MukeBox - 하모니카연습곡.zip](score/MukeBox%20-%20하모니카연습곡.zip)` — 하모니카연습곡
-- `[MukeBox - 똑같아요.zip](score/MukeBox%20-%20똑같아요.zip)` — 똑같아요
-- `[MukeBox - 학교종이 땡땡땡.zip](score/MukeBox%20-%20학교종이%20땡땡땡.zip)` — 학교종이 땡땡땡
+- [MukeBox - 하모니카연습곡.zip](score/MukeBox%20-%20하모니카연습곡.zip) — 하모니카연습곡
+- [MukeBox - 똑같아요.zip](score/MukeBox%20-%20똑같아요.zip) — 똑같아요
+- [MukeBox - 학교종이 땡땡땡.zip](score/MukeBox%20-%20학교종이%20땡땡땡.zip) — 학교종이 땡땡땡
 
-1. `[score/](score/)` 폴더에서 원하는 ZIP 파일을 **다운로드**합니다.
+1. [score/](score/) 폴더에서 원하는 ZIP 파일을 **다운로드**합니다.
 2. 다운로드한 ZIP을 **압축 해제**해 `.json` 파일을 꺼냅니다.
 3. [MukeBox](https://mcnorton.github.io/mukebox/)에 접속합니다.
 4. 헤더 우측 **가져오기** 버튼(↓ 아이콘)을 누릅니다.
