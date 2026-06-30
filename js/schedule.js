@@ -104,6 +104,33 @@
     return { events, cellSchedule: cells, totalDuration };
   }
 
+  /** 오디오 워밍업 — C3→C5 크로매틱 32분음표 @ 120 BPM */
+  function buildWarmupRecipe() {
+    const tempo = 120;
+    const timeSignature = { num: 4, den: 4 };
+    const beatSec = beatDurationSec(tempo, timeSignature);
+    const noteDur = beatSec / 8;
+
+    const pitches = [...PITCHES].reverse();
+    const events = [];
+
+    events.push({ time: 0, type: 'percussion', instrument: 'bassDrum', duration: 0.05 });
+    events.push({ time: 0.01, type: 'percussion', instrument: 'snareDrum', duration: 0.05 });
+    events.push({ time: 0.02, type: 'percussion', instrument: 'triangle', duration: 0.05 });
+
+    pitches.forEach((pitch, i) => {
+      events.push({
+        time: i * noteDur,
+        type: 'melodic',
+        pitch,
+        duration: noteDur * 0.95,
+      });
+    });
+
+    const totalDuration = pitches.length * noteDur + noteDur;
+    return { events, totalDuration };
+  }
+
   window.WMF = window.WMF || {};
-  window.WMF.Schedule = { buildSchedule, beatDurationSec, cellDurationSec };
+  window.WMF.Schedule = { buildSchedule, buildWarmupRecipe, beatDurationSec, cellDurationSec };
 })();

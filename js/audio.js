@@ -309,17 +309,21 @@
     }
   }
 
-  async function warmUpSynths() {
+  let warmupPlayed = false;
+
+  async function playWarmupOnce() {
+    if (warmupPlayed) return;
+    warmupPlayed = true;
+
+    await ensureUnlocked();
+    if (!audioReady) await initAudio();
+
+    const { Schedule } = window.WMF;
+    const { events, totalDuration } = Schedule.buildWarmupRecipe();
     const c = getContext();
-    const now = c.currentTime;
-    const warmDur = 0.05;
-    playPiano('C4', warmDur, now);
-    playBassDrum(warmDur, now + 0.01);
-    playSnare(warmDur, now + 0.02);
-    playTriangle(warmDur, now + 0.03);
-    await c.resume();
-    await new Promise((resolve) => setTimeout(resolve, 80));
-    clearScheduledNodes();
+    const start = c.currentTime + 0.05;
+    events.forEach((ev) => scheduleEvent(ev, start));
+    await new Promise((resolve) => setTimeout(resolve, (totalDuration + 0.1) * 1000));
   }
 
   async function initAudio() {
@@ -329,7 +333,6 @@
 
     initPromise = (async () => {
       getContext();
-      await warmUpSynths();
       audioReady = true;
       return true;
     })();
@@ -343,7 +346,8 @@
   }
 
   async function preloadAudio() {
-    return initAudio();
+    await initAudio();
+    await playWarmupOnce();
   }
 
   function isAudioReady() {
@@ -518,6 +522,7 @@
   window.WMF.Audio = {
     initAudio,
     preloadAudio,
+    playWarmupOnce,
     isAudioReady,
     ensureUnlocked,
     unlockFromUserGesture,
