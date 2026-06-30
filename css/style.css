@@ -145,7 +145,41 @@ body {
   padding: 0;
 }
 
+.btn-rename svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+  pointer-events: none;
+}
+
 .btn-rename:hover {
+  background: var(--bg);
+}
+
+.btn-icon-square {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn-icon-square svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+  pointer-events: none;
+}
+
+.btn-icon-square:hover {
   background: var(--bg);
 }
 
@@ -316,18 +350,24 @@ body {
 .btn-icon {
   width: 32px;
   height: 32px;
-  border: 1px solid var(--border);
+  padding: 0;
+  border: none;
   border-radius: var(--radius-round);
-  background: var(--surface);
+  background: transparent;
   color: var(--text-muted);
-  font-size: 0.9rem;
-  font-weight: 700;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+}
+
+.btn-icon svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+  pointer-events: none;
 }
 
 .btn-icon:hover {
@@ -1076,14 +1116,17 @@ body {
 }
 
 .play-icon {
-  font-size: 1.4rem;
-  margin-left: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   line-height: 1;
 }
 
-.btn-play.playing .play-icon {
-  margin-left: 0;
-  font-size: 1.1rem;
+.play-icon svg {
+  width: 40px;
+  height: 40px;
+  display: block;
+  pointer-events: none;
 }
 
 .btn-play.playing {
@@ -1307,7 +1350,11 @@ body {
   .btn-rename {
     width: 28px;
     height: 28px;
-    font-size: 0.85rem;
+  }
+
+  .btn-rename svg {
+    width: 20px;
+    height: 20px;
   }
 
   .btn-autosave {
@@ -1319,7 +1366,21 @@ body {
   .btn-icon {
     width: 40px;
     height: 40px;
-    font-size: 1rem;
+  }
+
+  .btn-icon svg {
+    width: 26px;
+    height: 26px;
+  }
+
+  .btn-icon-square {
+    width: 40px;
+    height: 40px;
+  }
+
+  .btn-icon-square svg {
+    width: 24px;
+    height: 24px;
   }
 
   .meter-label {
@@ -1334,8 +1395,9 @@ body {
     font-size: 0.9rem;
   }
 
-  .play-icon {
-    font-size: 1.6rem;
+  .play-icon svg {
+    width: 46px;
+    height: 46px;
   }
 
   .btn-add-measure {

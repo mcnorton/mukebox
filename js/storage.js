@@ -124,6 +124,25 @@
     return ordinal === 0 ? base : `${base} (${ordinal + 1})`;
   }
 
+  /** 새 무제 악보에 부여할 이름을 저장 전 미리 계산. 빈 이름과 "무제 (N)" 패턴을 모두 고려해 다음 번호를 부여 */
+  function previewUntitledName(entries) {
+    const I18n = window.WMF?.I18n;
+    const untitled = I18n ? I18n.t('untitledSong') : 'Untitled Song';
+    const escaped = untitled.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(`^${escaped}(?:\\s*\\((\\d+)\\))?$`);
+    let max = 0;
+    (entries || []).forEach((e) => {
+      const name = (e.name || '').trim();
+      if (name === '') {
+        max = Math.max(max, 1);
+        return;
+      }
+      const m = re.exec(name);
+      if (m) max = Math.max(max, m[1] ? parseInt(m[1], 10) : 1);
+    });
+    return max === 0 ? untitled : `${untitled} (${max + 1})`;
+  }
+
   function loadSongById(id) {
     try {
       const raw = localStorage.getItem(songKey(id));
@@ -309,6 +328,7 @@
     loadInitialSong,
     listLibraryEntries,
     getDisplayName,
+    previewUntitledName,
     getActiveId,
     setActiveId,
     loadSongById,

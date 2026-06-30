@@ -41,6 +41,7 @@
   let autosaveTimer = null;
   let isDirty = false;
   let isRenaming = false;
+  let cancelActiveRename = null;
   let selectedLibraryId = null;
   let pendingDeleteId = null;
 
@@ -96,6 +97,7 @@
 
   /** 현재 악보를 저장하고 다른 악보로 전환 (재생 중이면 정지) */
   function switchToSong(nextSong) {
+    if (isRenaming && cancelActiveRename) cancelActiveRename();
     if (Audio.getIsPlaying()) Audio.stopPlayback();
     song = nextSong;
     song.tempo = normalizeTempo(song.tempo);
@@ -135,6 +137,7 @@
     const commitRename = () => {
       if (!isRenaming) return;
       isRenaming = false;
+      cancelActiveRename = null;
       const newName = input.value.trim();
       input.replaceWith(songNameEl);
       if (newName !== (song.name || '').trim()) {
@@ -148,9 +151,12 @@
     const cancelRename = () => {
       if (!isRenaming) return;
       isRenaming = false;
+      cancelActiveRename = null;
       input.replaceWith(songNameEl);
       updateSongNameDisplay();
     };
+
+    cancelActiveRename = cancelRename;
 
     songNameEl.replaceWith(input);
     input.focus();
@@ -251,12 +257,15 @@
     if (locked) closeMeterPopover();
   }
 
+  const PLAY_ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="m238.23 342.43 89.09-74.13a16 16 0 0 0 0-24.6l-89.09-74.13A16 16 0 0 0 212 181.86v148.28a16 16 0 0 0 26.23 12.29" fill="currentColor"/><path d="M448 256c0-106-86-192-192-192S64 150 64 256s86 192 192 192 192-86 192-192Z" fill="none" stroke="currentColor" stroke-miterlimit="10" stroke-width="32"/></svg>';
+  const STOP_ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect x="176" y="176" width="160" height="160" rx="16" fill="currentColor"/><path d="M448 256c0-106-86-192-192-192S64 150 64 256s86 192 192 192 192-86 192-192Z" fill="none" stroke="currentColor" stroke-miterlimit="10" stroke-width="32"/></svg>';
+
   function updatePlayButton() {
     const playing = Audio.getIsPlaying();
     if (!btnPlay || !playIcon) return;
 
     btnPlay.classList.toggle('playing', playing);
-    playIcon.textContent = playing ? '■' : '▶';
+    playIcon.innerHTML = playing ? STOP_ICON_SVG : PLAY_ICON_SVG;
     const labelKey = playing ? 'stop' : 'play';
     btnPlay.title = I18n.t(labelKey);
     btnPlay.setAttribute('aria-label', I18n.t(labelKey));
@@ -499,10 +508,22 @@
   function createNewScore() {
     performAutosave();
     const fresh = createDefaultSong();
-    Storage.createLibraryEntry(fresh);
-    switchToSong(fresh);
+    fresh.name = Storage.previewUntitledName(Storage.listLibraryEntries());
+    const id = Storage.createLibraryEntry(fresh);
+    const reloaded = Storage.loadSongById(id) || fresh;
+    switchToSong(reloaded);
     closeLibraryPopover();
     showToast(I18n.t('toastNewScore'));
+  }
+
+  const newScoreModal = document.getElementById('new-score-modal');
+
+  function openNewScoreModal() {
+    newScoreModal?.classList.remove('hidden');
+  }
+
+  function closeNewScoreModal() {
+    newScoreModal?.classList.add('hidden');
   }
 
   function onSongChange(updated) {
@@ -703,8 +724,15 @@
 
   btnNewScore?.addEventListener('click', (e) => {
     e.stopPropagation();
+    openNewScoreModal();
+  });
+
+  document.getElementById('new-score-confirm')?.addEventListener('click', () => {
+    closeNewScoreModal();
     createNewScore();
   });
+  document.getElementById('new-score-cancel')?.addEventListener('click', closeNewScoreModal);
+  newScoreModal?.querySelector('.modal-backdrop')?.addEventListener('click', closeNewScoreModal);
 
   document.getElementById('delete-confirm')?.addEventListener('click', confirmDelete);
   document.getElementById('delete-cancel')?.addEventListener('click', closeDeleteModal);

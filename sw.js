@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mukebox-v3';
+const CACHE_NAME = 'mukebox-v5';
 
 const APP_SHELL = [
   './',
