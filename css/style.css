@@ -1256,6 +1256,11 @@ body {
   display: none;
 }
 
+[hidden],
+.hidden {
+  display: none !important;
+}
+
 /* Mouse row highlight — fine pointer only */
 @media (hover: hover) and (pointer: fine) {
   .lane-row.row-hover-highlight {
