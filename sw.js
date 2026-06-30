@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mukebox-v8';
+const CACHE_NAME = 'mukebox-v9';
 
 const APP_SHELL = [
   './',
@@ -13,6 +13,7 @@ const APP_SHELL = [
   './js/audio.js',
   './js/grid.js',
   './js/main.js',
+  './js/install.js',
   './icons/icon-192.png',
   './icons/icon-maskable-512.png',
   './icons/apple-touch-icon.png'

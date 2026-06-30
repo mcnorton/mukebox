@@ -161,6 +161,21 @@
     </div>
   </div>
 
+  <div id="install-flow" class="install-flow hidden" aria-hidden="true">
+    <div class="install-flow-backdrop"></div>
+    <div id="install-progress" class="install-flow-panel install-progress-panel">
+      <div class="install-spinner" aria-hidden="true"></div>
+      <p class="install-flow-message" data-i18n="installProgress">설치 중...</p>
+    </div>
+    <div id="install-success" class="install-flow-panel install-success-panel hidden" role="dialog" aria-labelledby="install-success-title">
+      <h3 id="install-success-title" data-i18n="installSuccessTitle">설치되었습니다</h3>
+      <p data-i18n="installSuccessMessage">브라우저를 닫고, 홈 화면의 MukeBox 아이콘을 눌러 실행해 주세요.</p>
+      <div class="modal-actions">
+        <button type="button" id="install-continue" class="btn btn-primary" data-i18n="installContinue">이대로 계속하기</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="toast hidden" role="status"></div>
 
   <script src="js/model.js"></script>
@@ -171,79 +186,13 @@
   <script src="js/audio.js"></script>
   <script src="js/grid.js"></script>
   <script src="js/main.js"></script>
+  <script src="js/install.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js').catch(() => { /* ignore */ });
       });
     }
-
-    (function setupInstall() {
-      const btn = document.getElementById('btn-install');
-      if (!btn) return;
-
-      const isStandalone = () =>
-        window.matchMedia('(display-mode: standalone)').matches ||
-        window.matchMedia('(display-mode: fullscreen)').matches ||
-        window.navigator.standalone === true;
-
-      const hide = () => btn.classList.add('hidden');
-      const show = () => btn.classList.remove('hidden');
-
-      if (isStandalone()) {
-        hide();
-        return;
-      }
-
-      const isIOS = /iphone|ipad|ipod/i.test(window.navigator.userAgent) ||
-        (window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1);
-
-      let deferredPrompt = null;
-
-      window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        show();
-      });
-
-      window.addEventListener('appinstalled', () => {
-        deferredPrompt = null;
-        hide();
-      });
-
-      // Already-installed detection (Chrome/Android, best-effort).
-      if (navigator.getInstalledRelatedApps) {
-        navigator.getInstalledRelatedApps().then((apps) => {
-          if (apps && apps.length > 0) hide();
-        }).catch(() => { /* ignore */ });
-      }
-
-      // iOS Safari has no beforeinstallprompt; show the button so we can guide.
-      if (isIOS) show();
-
-      // Re-hide if the app gets launched in standalone after install.
-      window.addEventListener('visibilitychange', () => {
-        if (isStandalone()) hide();
-      });
-
-      const iosModal = document.getElementById('ios-install-modal');
-      const iosClose = document.getElementById('ios-install-close');
-      const backdrop = iosModal ? iosModal.querySelector('.modal-backdrop') : null;
-      const closeIosModal = () => { if (iosModal) iosModal.classList.add('hidden'); };
-      if (iosClose) iosClose.addEventListener('click', closeIosModal);
-      if (backdrop) backdrop.addEventListener('click', closeIosModal);
-
-      btn.addEventListener('click', async () => {
-        if (deferredPrompt) {
-          deferredPrompt.prompt();
-          const choice = await deferredPrompt.userChoice;
-          deferredPrompt = null;
-          if (choice && choice.outcome === 'accepted') hide();
-          return;
-        }
-        if (iosModal) iosModal.classList.remove('hidden');
-      });
-    })();
   </script>
 </body>
 </html>

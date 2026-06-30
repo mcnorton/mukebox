@@ -90,8 +90,10 @@
     try {
       Storage.saveActiveSong(song);
       setAutosaveSaved();
+      return true;
     } catch {
       showToast(I18n.t('toastStorageFull'));
+      return false;
     }
   }
 
@@ -753,4 +755,6 @@
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') flushAutosave();
   });
+
+  window.WMF.saveActiveScoreNow = () => performAutosave();
 })();
