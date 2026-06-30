@@ -209,6 +209,43 @@ body {
   border-color: var(--border);
 }
 
+/* 설치 버튼: 음표와 동일한 배경색 + 재생 스파클 효과를 항상 반복 */
+.btn-install {
+  position: relative;
+  overflow: visible;
+  background: var(--note-white-key);
+  color: #fff;
+  border-color: var(--note-white-key);
+  --note-color: var(--note-white-key);
+  animation: noteSparkle 0.45s ease-in-out infinite alternate;
+}
+
+.btn-install:hover {
+  filter: brightness(1.05);
+}
+
+.btn-install::before,
+.btn-install::after {
+  content: '✦';
+  position: absolute;
+  pointer-events: none;
+  font-size: 0.6rem;
+  color: var(--sparkle);
+  text-shadow: 0 0 6px #fff, 0 0 10px var(--sparkle);
+  animation: sparkleBurst 0.45s ease-in-out infinite;
+}
+
+.btn-install::before {
+  top: 8%;
+  left: 12%;
+}
+
+.btn-install::after {
+  bottom: 8%;
+  right: 12%;
+  animation-delay: 0.2s;
+}
+
 .app-top-actions {
   display: flex;
   align-items: center;
