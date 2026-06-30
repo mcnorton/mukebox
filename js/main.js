@@ -562,6 +562,8 @@
   setAutosaveSaved();
 
   let welcomeCompleted = false;
+  let appInBackground = false;
+  let reentryTimer = null;
 
   function showWelcomeModal() {
     welcomeModal?.classList.remove('hidden');
@@ -569,6 +571,34 @@
 
   function closeWelcomeModal() {
     welcomeModal?.classList.add('hidden');
+  }
+
+  function resetWelcomeSession() {
+    if (Audio.getIsPlaying()) {
+      Audio.stopPlayback();
+    }
+    welcomeCompleted = false;
+    if (welcomeStart) {
+      welcomeStart.disabled = false;
+    }
+    showWelcomeModal();
+  }
+
+  function markAppBackground() {
+    appInBackground = true;
+  }
+
+  function handleAppReentry() {
+    if (!appInBackground) return;
+    if (document.visibilityState === 'hidden') return;
+
+    clearTimeout(reentryTimer);
+    reentryTimer = setTimeout(() => {
+      if (!appInBackground) return;
+      if (document.visibilityState === 'hidden') return;
+      appInBackground = false;
+      resetWelcomeSession();
+    }, 50);
   }
 
   async function onWelcomeStart() {
@@ -585,6 +615,36 @@
 
   welcomeStart?.addEventListener('click', onWelcomeStart);
   showWelcomeModal();
+
+  window.addEventListener('pagehide', () => {
+    markAppBackground();
+    flushAutosave();
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      markAppBackground();
+      flushAutosave();
+    } else {
+      handleAppReentry();
+    }
+  });
+
+  window.addEventListener('pageshow', (e) => {
+    if (e.persisted) {
+      appInBackground = true;
+    }
+    handleAppReentry();
+  });
+
+  window.addEventListener('focus', () => {
+    handleAppReentry();
+  });
+
+  document.addEventListener('freeze', markAppBackground);
+  document.addEventListener('resume', () => {
+    handleAppReentry();
+  });
 
   btnPlay?.addEventListener('pointerdown', () => {
     Audio.unlockFromUserGesture();
@@ -760,11 +820,6 @@
   });
   helpModal?.querySelector('.modal-backdrop')?.addEventListener('click', () => {
     helpModal.classList.add('hidden');
-  });
-
-  window.addEventListener('pagehide', flushAutosave);
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') flushAutosave();
   });
 
   window.WMF.saveActiveScoreNow = () => performAutosave();
