@@ -742,6 +742,7 @@
 
   const helpModal = document.getElementById('help-modal');
   document.getElementById('btn-help')?.addEventListener('click', () => {
+    window.WMF.Install?.updateHelpInstallButton?.();
     helpModal.classList.remove('hidden');
   });
   document.getElementById('help-close')?.addEventListener('click', () => {

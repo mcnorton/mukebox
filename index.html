@@ -112,11 +112,15 @@
       </ul>
       <div class="help-footer">
         <hr class="help-divider" aria-hidden="true">
-        <a class="help-footer-link" href="https://github.com/mcnorton/mukebox" target="_blank" rel="noopener noreferrer">github.com/mcnorton/mukebox</a>
-        <a class="help-footer-link" href="https://mcnorton.github.io/mukebox/" target="_blank" rel="noopener noreferrer">mcnorton.github.io/mukebox</a>
-        <a class="help-footer-link" href="https://mukebox.vercel.app" target="_blank" rel="noopener noreferrer">mukebox.vercel.app</a>
+        Connect to GitHub Pages: <br /><a class="help-footer-link" href="https://mcnorton.github.io/mukebox/" target="_blank" rel="noopener noreferrer">mcnorton.github.io/mukebox</a>
+        Connect to Vercel: <br /><a class="help-footer-link" href="https://mukebox.vercel.app" target="_blank" rel="noopener noreferrer">mukebox.vercel.app</a>
+        <hr class="help-divider" aria-hidden="true">
+        MukeBox GitHub Repository : <br /><a class="help-footer-link" href="https://github.com/mcnorton/mukebox" target="_blank" rel="noopener noreferrer">github.com/mcnorton/mukebox</a>
+        <hr class="help-divider" aria-hidden="true">
+        Thanks to Ionicons : <br /><a class="help-footer-link" href="https://ionic.io/ionicons" target="_blank" rel="noopener noreferrer">ionic.io/ionicons</a>
       </div>
       <div class="modal-actions">
+        <button type="button" id="btn-help-install" class="btn btn-secondary hidden" data-i18n="installApp" data-i18n-aria="installApp">App 설치</button>
         <button type="button" id="help-close" class="btn btn-primary" data-i18n="close">닫기</button>
       </div>
     </div>
@@ -157,6 +161,21 @@
       </ol>
       <div class="modal-actions">
         <button type="button" id="ios-install-close" class="btn btn-primary" data-i18n="close">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="install-reinstall-modal" class="modal hidden" role="dialog" aria-labelledby="install-reinstall-title">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <h3 id="install-reinstall-title" data-i18n="installReinstallTitle">바로가기 다시 추가하기</h3>
+      <p data-i18n="installReinstallIntro">앱은 설치되어 있지만 홈 화면 아이콘이 없을 수 있어요.</p>
+      <ol class="help-list install-steps">
+        <li data-i18n-html="installReinstallChrome"></li>
+        <li data-i18n-html="installReinstallApps"></li>
+      </ol>
+      <div class="modal-actions">
+        <button type="button" id="install-reinstall-close" class="btn btn-primary" data-i18n="close">닫기</button>
       </div>
     </div>
   </div>
