@@ -36,6 +36,8 @@
   const libraryPopover = document.getElementById('library-popover');
   const btnNewScore = document.getElementById('btn-new-score');
   const deleteModal = document.getElementById('delete-score-modal');
+  const welcomeModal = document.getElementById('welcome-modal');
+  const welcomeStart = document.getElementById('welcome-start');
 
   const AUTOSAVE_DELAY_MS = 10000;
   let autosaveTimer = null;
@@ -559,21 +561,30 @@
   updateSongNameDisplay();
   setAutosaveSaved();
 
-  let audioPreloaded = false;
-  function preloadAudioOnce() {
-    Audio.unlockFromUserGesture();
-    if (audioPreloaded) return;
-    audioPreloaded = true;
-    Audio.preloadAudio().catch(() => {
-      audioPreloaded = false;
-    });
+  let welcomeCompleted = false;
+
+  function showWelcomeModal() {
+    welcomeModal?.classList.remove('hidden');
   }
 
-  const appEl = document.querySelector('.app');
-  if (appEl) {
-    appEl.addEventListener('pointerdown', preloadAudioOnce, { once: true, passive: true });
-    appEl.addEventListener('touchstart', preloadAudioOnce, { once: true, passive: true });
+  function closeWelcomeModal() {
+    welcomeModal?.classList.add('hidden');
   }
+
+  async function onWelcomeStart() {
+    if (welcomeCompleted || !welcomeStart) return;
+    welcomeStart.disabled = true;
+    try {
+      await Audio.startWithWarmup();
+      welcomeCompleted = true;
+      closeWelcomeModal();
+    } catch {
+      welcomeStart.disabled = false;
+    }
+  }
+
+  welcomeStart?.addEventListener('click', onWelcomeStart);
+  showWelcomeModal();
 
   btnPlay?.addEventListener('pointerdown', () => {
     Audio.unlockFromUserGesture();

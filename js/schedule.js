@@ -104,6 +104,72 @@
     return { events, cellSchedule: cells, totalDuration };
   }
 
+  /** 오디오 워밍업 — 크로매틱 32분음표 */
+  const WARMUP_TEST_TEMPO = 120;
+  const WARMUP_PRELOAD_TEMPO = 480;
+  const WARMUP_METER = { num: 4, den: 4 };
+  const WARMUP_DRUM_SPAN = 0.05;
+
+  function warmupNoteDur(tempo = WARMUP_TEST_TEMPO) {
+    return beatDurationSec(tempo, WARMUP_METER) / 8;
+  }
+
+  function warmupPitchesAscending() {
+    return [...PITCHES].reverse();
+  }
+
+  function warmupPitchesDescending() {
+    return [...warmupPitchesAscending()].reverse();
+  }
+
+  function appendMelody(events, startTime, noteDur, pitches) {
+    pitches.forEach((pitch, i) => {
+      events.push({
+        time: startTime + i * noteDur,
+        type: 'melodic',
+        pitch,
+        duration: noteDur * 0.95,
+      });
+    });
+    return startTime + pitches.length * noteDur;
+  }
+
+  function appendDrums(events, startTime) {
+    events.push({ time: startTime, type: 'percussion', instrument: 'bassDrum', duration: 0.05 });
+    events.push({ time: startTime + 0.01, type: 'percussion', instrument: 'snareDrum', duration: 0.05 });
+    events.push({ time: startTime + 0.02, type: 'percussion', instrument: 'triangle', duration: 0.05 });
+    return startTime + WARMUP_DRUM_SPAN;
+  }
+
+  /** 볼륨 0% 프리로드: 타악기 + 올라가는 멜로디 (고속) */
+  function buildWarmupPreloadRecipe() {
+    const noteDur = warmupNoteDur(WARMUP_PRELOAD_TEMPO);
+    const pitches = warmupPitchesAscending();
+    const events = [];
+    let t = appendDrums(events, 0);
+    t = appendMelody(events, t, noteDur, pitches);
+    return { events, totalDuration: t + noteDur };
+  }
+
+  /** 볼륨 100% 테스트: 타악기 + 올라가는 멜로디 + 내려가는 멜로디 + 타악기 */
+  function buildWarmupTestRecipe() {
+    const noteDur = warmupNoteDur();
+    const ascending = warmupPitchesAscending();
+    const descending = warmupPitchesDescending();
+    const events = [];
+    let t = appendDrums(events, 0);
+    t = appendMelody(events, t, noteDur, ascending);
+    t = appendMelody(events, t, noteDur, descending);
+    t = appendDrums(events, t);
+    return { events, totalDuration: t + noteDur };
+  }
+
   window.WMF = window.WMF || {};
-  window.WMF.Schedule = { buildSchedule, beatDurationSec, cellDurationSec };
+  window.WMF.Schedule = {
+    buildSchedule,
+    buildWarmupPreloadRecipe,
+    buildWarmupTestRecipe,
+    beatDurationSec,
+    cellDurationSec,
+  };
 })();

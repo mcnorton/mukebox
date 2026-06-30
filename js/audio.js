@@ -5,6 +5,8 @@
 (function () {
   const AudioCtx = window.AudioContext || window.webkitAudioContext;
 
+  const DEFAULT_MASTER_GAIN = 0.8;
+
   let ctx = null;
   let masterGain = null;
   let outputNode = null;
@@ -100,7 +102,7 @@
     if (!ctx) {
       ctx = new AudioCtx();
       masterGain = ctx.createGain();
-      masterGain.gain.value = 0.8;
+      masterGain.gain.value = DEFAULT_MASTER_GAIN;
       setupOutputChain();
     }
     return ctx;
@@ -309,17 +311,26 @@
     }
   }
 
-  async function warmUpSynths() {
+  async function playWarmupRecipe(recipe, gain) {
     const c = getContext();
-    const now = c.currentTime;
-    const warmDur = 0.05;
-    playPiano('C4', warmDur, now);
-    playBassDrum(warmDur, now + 0.01);
-    playSnare(warmDur, now + 0.02);
-    playTriangle(warmDur, now + 0.03);
-    await c.resume();
-    await new Promise((resolve) => setTimeout(resolve, 80));
-    clearScheduledNodes();
+    masterGain.gain.value = gain;
+    const start = c.currentTime + 0.05;
+    recipe.events.forEach((ev) => scheduleEvent(ev, start));
+    await new Promise((resolve) => setTimeout(resolve, (recipe.totalDuration + 0.1) * 1000));
+  }
+
+  async function runAudioWarmup() {
+    const { Schedule } = window.WMF;
+    getContext();
+
+    await playWarmupRecipe(Schedule.buildWarmupPreloadRecipe(), 0);
+    await playWarmupRecipe(Schedule.buildWarmupTestRecipe(), DEFAULT_MASTER_GAIN);
+  }
+
+  async function startWithWarmup() {
+    await unlockFromUserGesture();
+    await initAudio();
+    await runAudioWarmup();
   }
 
   async function initAudio() {
@@ -329,7 +340,6 @@
 
     initPromise = (async () => {
       getContext();
-      await warmUpSynths();
       audioReady = true;
       return true;
     })();
@@ -518,6 +528,8 @@
   window.WMF.Audio = {
     initAudio,
     preloadAudio,
+    runAudioWarmup,
+    startWithWarmup,
     isAudioReady,
     ensureUnlocked,
     unlockFromUserGesture,

@@ -71,6 +71,9 @@
       tempoName120: '모데라토',
       tempoName140: '알레그로',
       tempoName160: '프레스토',
+      welcomeTitle: 'MukeBox에 오신 것을 환영합니다',
+      welcomeMessage: '시작을 누르면 소리를 준비해요.',
+      welcomeStart: '시작합니다',
     },
     en: {
       save: 'Save',
@@ -136,6 +139,9 @@
       tempoName120: 'Moderato',
       tempoName140: 'Allegro',
       tempoName160: 'Presto',
+      welcomeTitle: 'Welcome to MukeBox',
+      welcomeMessage: 'Tap Start to prepare audio.',
+      welcomeStart: 'Get started',
     },
   };
 
