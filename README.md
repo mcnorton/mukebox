@@ -3,7 +3,7 @@
 음표 길이(온음표~16분음표)를 직접 만들고 연주하는 **교육용 악보+연주 웹앱**입니다.  
 Chrome Music Lab [Song Maker](https://musiclab.chromeexperiments.com/Song-Maker/)에서 영감을 받았으며, 수업에서 리듬과 멜로디를 시각적으로 배치하고 즉시 소리로 확인할 수 있습니다.
 
-MukeBox 악보 편집 화면
+![MukeBox 악보 편집 화면](mukebox.png)
 
 ## 바로 실행하기
 
