@@ -2,8 +2,8 @@
  * MukeBox — PWA install flow
  *
  * 헤더 [설치] 버튼: 미설치 + prompt 있을 때만 노출, 네이티브 설치 대화창 진행.
- * 도움말 [App 설치] 버튼: 브라우저 탭이면 항상 노출, 이미 설치되어 prompt가 없으면
- *   바로가기 복구 안내 모달까지 분기 (숏컷만 지운 경우 대비).
+ * 도움말 [App 설치] 버튼: 항상 반짝이며 노출, 설치 여부·실행 모드와 무관하게
+ *   재설치·바로가기 복구 안내 제공 (숏컷 분실 대비).
  *
  * 공통: 저장 → "설치 중..." 오버레이 → 네이티브 대화창 →
  *   취소 시 오버레이만 제거, 수락 시 완료 안내 → [이대로 계속하기]로 정리.
@@ -34,11 +34,6 @@
 
   const hideHeaderBtn = () => btn && btn.classList.add('hidden');
   const showHeaderBtn = () => btn && btn.classList.remove('hidden');
-
-  function updateHelpInstallButton() {
-    if (!helpBtn) return;
-    helpBtn.classList.toggle('hidden', isStandalone());
-  }
 
   function saveActiveScore() {
     return window.WMF?.saveActiveScoreNow?.() ?? true;
@@ -142,10 +137,7 @@
 
   // Re-hide if the app gets launched in standalone after install.
   window.addEventListener('visibilitychange', () => {
-    if (isStandalone()) {
-      hideHeaderBtn();
-      updateHelpInstallButton();
-    }
+    if (isStandalone()) hideHeaderBtn();
   });
 
   const iosClose = document.getElementById('ios-install-close');
@@ -171,12 +163,9 @@
     helpBtn.addEventListener('click', () => triggerInstallFlow({ source: 'help' }));
   }
 
-  updateHelpInstallButton();
-
   window.WMF = window.WMF || {};
   window.WMF.Install = {
     trigger: triggerInstallFlow,
     isStandalone,
-    updateHelpInstallButton,
   };
 })();

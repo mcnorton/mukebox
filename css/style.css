@@ -246,6 +246,10 @@ body {
   animation-delay: 0.2s;
 }
 
+.modal-actions .btn-install {
+  overflow: visible;
+}
+
 .app-top-actions {
   display: flex;
   align-items: center;
