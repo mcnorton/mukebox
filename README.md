@@ -20,18 +20,19 @@ Chrome Music Lab [Song Maker](https://musiclab.chromeexperiments.com/Song-Maker/
 
 ## 예제 악보 불러오기
 
-[`score/`](score/) 폴더에 예제 악보 JSON 파일이 있습니다.
+[`score/`](score/) 폴더에 예제 악보 ZIP 파일이 있습니다.
 
-- `MukeBox - 하모니카연습곡.json` — 하모니카연습곡
-- `MukeBox - 똑같아요.json` — 똑같아요
+- [`MukeBox - 하모니카연습곡.zip`](score/MukeBox%20-%20하모니카연습곡.zip) — 하모니카연습곡
+- [`MukeBox - 똑같아요.zip`](score/MukeBox%20-%20똑같아요.zip) — 똑같아요
 
-1. [`score/`](score/) 폴더에서 원하는 JSON 파일을 **다운로드**합니다. (GitHub에서 파일을 연 뒤 **Download raw file** 또는 **Raw** 버튼을 사용하세요.)
-2. [MukeBox](https://mukebox.vercel.app)에 접속합니다.
-3. 헤더 우측 **가져오기** 버튼(↑ 아이콘)을 누릅니다.
-4. 다운로드한 `.json` 파일을 선택합니다.
-5. 악보가 열리면 **▶ 재생**으로 들어 보세요. **목록**에서도 불러온 악보를 다시 열 수 있습니다.
+1. [`score/`](score/) 폴더에서 원하는 ZIP 파일을 **다운로드**합니다.
+2. 다운로드한 ZIP을 **압축 해제**해 `.json` 파일을 꺼냅니다.
+3. [MukeBox](https://mukebox.vercel.app)에 접속합니다.
+4. 헤더 우측 **가져오기** 버튼(↑ 아이콘)을 누릅니다.
+5. 압축을 푼 `.json` 파일을 선택합니다.
+6. 악보가 열리면 **▶ 재생**으로 들어 보세요. **목록**에서도 불러온 악보를 다시 열 수 있습니다.
 
-저장소를 클론한 경우 `score/` 폴더의 JSON 파일을 바로 선택해도 됩니다.
+저장소를 클론한 경우 ZIP을 풀어 나온 `.json` 파일을 바로 선택해도 됩니다.
 
 ## 기본 기능
 
